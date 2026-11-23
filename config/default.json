@@ -1,0 +1,53 @@
+{
+  "port": 5180,
+  "tfs": {
+    "serverUrl": "https://tfs-product.cmf.criticalmanufacturing.com",
+    "collection": "Products",
+    "project": "Product",
+    "apiVersion": "6.0",
+    "caCertPath": "N:\\Product\\.claude\\cmf-root-ca.pem"
+  },
+  "wiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.State] IN ('New','Active') ORDER BY [Custom.BusinessOrder]",
+  "validation": {
+    "wiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.State] = 'Resolved' AND [System.AssignedTo] = @Me ORDER BY [Microsoft.VSTS.Common.ResolvedDate]",
+    "close": { "Bug": "Verified", "User Story": "Acceptance tests pass", "Feature": "Acceptance tests pass", "Epic": "Acceptance tests pass" },
+    "reject": { "Bug": "Test Failed", "User Story": "Acceptance tests fail", "Feature": "Acceptance tests fail", "Epic": "Acceptance tests fail" }
+  },
+  "backlogs": [
+    { "id": "connect-iot", "name": "Connect IoT", "color": "#1565c0", "areaPath": "Product\\Technology\\Connect IoT" },
+    { "id": "industrial-connectivity", "name": "Industrial Connectivity", "color": "#2e7d32", "areaPath": "Product\\Data and Delivery\\Industrial Connectivity" }
+  ],
+  "bands": [
+    { "label": "Not Reviewed", "min": -1, "max": -1, "color": "#9e9e9e" },
+    { "label": "High Priority", "min": 0, "max": 99, "color": "#d32f2f" },
+    { "label": "To do Next", "min": 100, "max": 299, "color": "#f57c00" },
+    { "label": "After Next", "min": 300, "max": 599, "color": "#fbc02d" },
+    { "label": "Tech Debt", "min": 600, "max": 799, "color": "#7b1fa2" },
+    { "label": "Low Priority", "min": 800, "max": 999, "color": "#1976d2" },
+    { "label": "Recheck", "min": 1000, "max": 1999, "color": "#00897b" },
+    { "label": "Will Not Be Done", "min": 2000, "max": 4999, "color": "#616161" },
+    { "label": "Known Issues", "min": 5000, "max": null, "color": "#5d4037" }
+  ],
+  "componentRules": [
+    { "match": "EasyForJunior", "component": "EasyForJunior" },
+    { "match": "Monitor", "component": "Monitor" },
+    { "match": "Controller", "component": "Controller" },
+    { "match": "Manager", "component": "Manager" },
+    { "match": "Protocol", "component": "Protocol" },
+    { "match": "ATL", "component": "ATL" },
+    { "match": "Gui", "component": "Gui" },
+    { "match": "All", "component": "All" },
+    { "match": "Tests", "component": "Tests" },
+    { "match": "Documentation", "component": "Documentation" },
+    { "match": "UX", "component": "UX" },
+    { "match": "Host", "component": "Host" },
+    { "match": "ABS", "component": "ABS" },
+    { "match": "TechDebt", "component": "TechDebt" },
+    { "match": "Setup", "component": "Setup" }
+  ],
+  "versionTags": ["11.3x", "12.0x", "12.1x", "13.0x"],
+  "nextVersionTag": "12.1x",
+  "hiddenTags": [],
+  "editableFields": ["Custom.BusinessOrder", "System.Tags", "System.State", "System.Title", "System.IterationPath"],
+  "stateOptions": ["New", "Active", "Resolved", "Closed", "Removed"]
+}
