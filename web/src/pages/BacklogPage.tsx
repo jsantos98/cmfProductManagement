@@ -966,6 +966,16 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   const [detailId, setDetailId] = useState<number | null>(null);
   const onCellClicked = (e: CellClickedEvent<BacklogItem>) => {
     if (!e.data || e.colDef.colId === 'sel') return;
+    // shortcut: clicking BusinessOrder in view mode switches to edit mode and edits that cell
+    if (!ctx.editMode && e.colDef.colId === 'businessOrder' && !e.data.outside && ctx.editable.has(FIELD_REF.businessOrder)) {
+      ctx.editMode = true;
+      setEditMode(true);
+      const node = e.node;
+      setTimeout(() => {
+        if (node.rowIndex !== null) gridApi.current?.startEditingCell({ rowIndex: node.rowIndex, colKey: 'businessOrder' });
+      }, 0);
+      return;
+    }
     if (ctx.editMode && e.colDef.colId !== 'waiting') return;
     if ((e.event?.target as HTMLElement | null)?.closest('a,input,button,label')) return;
     setDetailId(e.data.id);
