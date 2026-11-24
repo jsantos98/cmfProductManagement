@@ -142,6 +142,40 @@ export interface PortalRequestsResponse {
 
 export interface PortalArticle { id: string; from: string; to: string; createdOn: string; type: string; html: string }
 
+/** A write action on a portal ticket. `expectedModifiedOn` = the ticket's ModifiedOn the client saw (optimistic check). */
+export type PortalActionRequest = { expectedModifiedOn: string } & (
+  | { action: 'assign-to-me' }
+  | { action: 'state'; to: string; reason?: string; comment?: string }
+  | { action: 'reply'; kind: 'reply' | 'public-note' | 'internal-note'; text: string; timeSpent?: number }
+  | { action: 'link-work-items'; ids: number[] }
+);
+
+export interface PortalActionResult {
+  ok: true;
+  dryRun: boolean;
+  summary: string;
+  /** dry run only: the portal service and input that would be sent (ticket elided) */
+  request?: { service: string; input: Record<string, unknown> };
+  /** after a real write: the ticket re-read from the portal */
+  details?: PortalTicketDetails;
+}
+
+/** What can be done to a ticket now. */
+export interface PortalTicketOptions {
+  state: string;
+  /** states reachable from the current one */
+  transitions: string[];
+  closeReasons: { value: string; description: string }[];
+  /** TFS ids already linked */
+  workItems: number[];
+  modifiedOn: string;
+  /** where a Reply / Public note goes: the last message's sender, with its CC */
+  replyTo: string;
+  replyCc: string;
+}
+
+export interface PortalWorkItem { id: number; title: string | null; type: string | null; state: string | null }
+
 export interface PortalTicketDetails {
   ticket: PortalTicketRow;
   stateModel: string;

@@ -9,9 +9,15 @@ export class PortalApiError extends Error {
   }
 }
 
-/** `Cmf.CustomerPortal.Orchestration.<area>.InputObjects.<method>Input, Cmf.CustomerPortal.Orchestration` */
-export const inputType = (area: string, method: string) =>
-  `Cmf.CustomerPortal.Orchestration.${area}.InputObjects.${method}Input, Cmf.CustomerPortal.Orchestration`;
+/**
+ * `Cmf.CustomerPortal.Orchestration.<area>.InputObjects.<method>Input, Cmf.CustomerPortal.Orchestration`, or with
+ * `ns` (e.g. `Cmf.Foundation.BusinessOrchestration.TableManagement`) `<ns>.InputObjects.<method>Input, <assembly>`.
+ */
+export const inputType = (area: string, method: string, ns?: string) => {
+  const prefix = ns ?? `Cmf.CustomerPortal.Orchestration.${area}`;
+  const assembly = prefix.split('.').slice(0, 3).join('.');
+  return `${prefix}.InputObjects.${method}Input, ${assembly}`;
+};
 
 async function send(url: string, body: string, token: string): Promise<Response> {
   return fetch(url, {
@@ -23,9 +29,9 @@ async function send(url: string, body: string, token: string): Promise<Response>
 }
 
 /** POST {baseUrl}/api/{service}/{method}; retries once with a refreshed token after a 401. */
-export async function portalCall<T>(service: string, method: string, area: string, input: Record<string, unknown>): Promise<T> {
+export async function portalCall<T>(service: string, method: string, area: string, input: Record<string, unknown>, ns?: string): Promise<T> {
   const url = `${getConfig().portal.baseUrl}/api/${service}/${method}`;
-  const body = JSON.stringify({ $id: '1', $type: inputType(area, method), ...input });
+  const body = JSON.stringify({ $id: '1', $type: inputType(area, method, ns), ...input });
   let res = await send(url, body, await accessToken());
   if (res.status === 401) res = await send(url, body, await accessToken(true));
   const text = await res.text();

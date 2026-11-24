@@ -11,8 +11,9 @@ import { getSummary, loadValidation, pruneValidationCaches, transition } from '.
 import { getHomeComments, getHomeFeatures, getHomeNextVersion, getHomeRecent, getHomeTriage, getHomeValidate } from './backlog/home.js';
 import { completeLogin, loginUrl, logout as portalLogout, PortalAuthError, status as portalStatus } from './portal/auth.js';
 import { PortalApiError } from './portal/client.js';
+import { getOptions as getPortalOptions, getWorkItem as getPortalWorkItem, PortalActionError, PortalConflictError, runAction as runPortalAction } from './portal/actions.js';
 import { getRequests as getPortalRequests, getTicketDetails, setDismissed, setPin, validTicketId } from './portal/requests.js';
-import type { ChangesRequest, HealthResponse, SettingsDto, TransitionRequest } from './types.js';
+import type { ChangesRequest, HealthResponse, PortalActionRequest, SettingsDto, TransitionRequest } from './types.js';
 
 const version = (() => {
   try { return JSON.parse(fs.readFileSync(path.join(repoRoot, 'server', 'package.json'), 'utf8')).version ?? '0.0.0'; } catch { return '0.0.0'; }
@@ -150,6 +151,19 @@ app.get('/api/portal/tickets/:id', h(async (req, res) => {
   if (!validTicketId(id)) return void res.status(400).json({ error: 'Invalid ticket id' });
   res.json(await getTicketDetails(id));
 }));
+app.get('/api/portal/tickets/:id/options', h(async (req, res) => {
+  const id = String(req.params.id);
+  if (!validTicketId(id)) return void res.status(400).json({ error: 'Invalid ticket id' });
+  res.json(await getPortalOptions(id));
+}));
+app.get('/api/portal/workitems/:wid', h(async (req, res) => {
+  const wid = Number(req.params.wid);
+  if (!Number.isInteger(wid) || wid <= 0) return void res.status(400).json({ error: 'Invalid work item id' });
+  res.json(await getPortalWorkItem(wid));
+}));
+app.post('/api/portal/tickets/:id/action', h(async (req, res) => {
+  res.json(await runPortalAction(String(req.params.id), req.body as PortalActionRequest, req.query.dryRun === '1'));
+}));
 for (const [route, fn] of [['pins', setPin], ['dismissed', setDismissed]] as const) {
   app.post(`/api/portal/${route}/:id`, (req, res) => {
     const id = String(req.params.id);
@@ -189,6 +203,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     : err instanceof TfsError ? 502
     : err instanceof PortalAuthError ? 401
     : err instanceof PortalApiError ? 502
+    : err instanceof PortalConflictError ? 409
+    : err instanceof PortalActionError ? 400
     : e.type === 'entity.parse.failed' ? 400
     : 500;
   if (status >= 500) console.error(e.message);

@@ -430,7 +430,7 @@ export default function PortalPage({ active, portal }: { active: boolean; portal
           </>
         )}
       </div>
-      {panelRow && active && <PortalTicketPanel row={panelRow} onClose={closeDetail} onStep={stepDetail} onTogglePin={togglePin} busy={busy.has(panelRow.id)} />}
+      {panelRow && active && <PortalTicketPanel row={panelRow} onClose={closeDetail} onStep={stepDetail} onTogglePin={togglePin} busy={busy.has(panelRow.id)} onChanged={() => void load(true)} />}
     </div>
   );
 }

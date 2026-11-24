@@ -31,6 +31,24 @@ const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 export const ticketUrl = (baseUrl: string, id: string) => `${baseUrl}/Entity/Ticket/${id}`;
 
+/** The portal serialises shared objects once ($id) and refers to them later ({$ref}); returns a resolver. */
+export function refResolver(root: unknown): <T>(x: T) => T {
+  const ids = new Map<string, unknown>();
+  const seen = new Set<unknown>();
+  const walk = (v: unknown) => {
+    if (!v || typeof v !== 'object' || seen.has(v)) return;
+    seen.add(v);
+    const id = (v as { $id?: unknown }).$id;
+    if (typeof id === 'string') ids.set(id, v);
+    for (const c of Array.isArray(v) ? v : Object.values(v)) walk(c);
+  };
+  walk(root);
+  return <T>(x: T): T => {
+    const ref = x && typeof x === 'object' ? (x as { $ref?: unknown }).$ref : undefined;
+    return (typeof ref === 'string' && ids.has(ref) ? ids.get(ref) : x) as T;
+  };
+}
+
 /** Row of GetTicketsByFilter (camelCase fields). */
 export function rowFromList(r: any, cfg: Pick<PortalConfig, 'baseUrl' | 'keywords'>, pinned: boolean): PortalTicketRow {
   const id = str(r.id);
@@ -71,7 +89,9 @@ export function articlesOf(a: any): PortalArticle[] {
 
 /** Details of GetTicketDetails (PascalCase Ticket). */
 export function detailsFromOutput(o: any, cfg: Pick<PortalConfig, 'baseUrl' | 'keywords'>, pinned: boolean): PortalTicketDetails {
+  const d = refResolver(o);
   const t = o?.Ticket ?? {};
+  const site = d(t.Site), cms = d(t.CurrentMainState), user = d(t.User);
   const articles = articlesOf(o?.Articles);
   const id = str(t.Id || t.Name);
   const firstBody = articles[0] ? plain(articles[0].html) : '';
@@ -79,14 +99,14 @@ export function detailsFromOutput(o: any, cfg: Pick<PortalConfig, 'baseUrl' | 'k
     id,
     title: str(t.Title),
     priority: str(t.Priority),
-    state: str(t.CurrentMainState?.CurrentState?.Name || t.State),
+    state: str(d(cms?.CurrentState)?.Name || t.State),
     status: str(t.Status),
-    customer: str(t.Site?.Customer?.Name),
-    site: str(t.Site?.Name || t.DataGroupName),
-    context: str(t.TicketContext?.Name),
-    requester: str(t.User?.User?.Name || t.User?.Name || t.CreatedBy),
+    customer: str(d(site?.Customer)?.Name),
+    site: str(site?.Name || t.DataGroupName),
+    context: str(d(t.TicketContext)?.Name),
+    requester: str(d(user?.User)?.Name || user?.Name || t.CreatedBy),
     ownerRole: str(t.EscalationStateModelStateRoleName),
-    agent: str(t.Agent?.User?.Name || t.Agent?.Name),
+    agent: str(d(d(t.Owner)?.User)?.Name || d(t.Owner)?.Name),
     replies: Math.max(0, articles.length - 1),
     workItems: 0,
     createdOn: str(t.CreatedOn),
@@ -100,7 +120,7 @@ export function detailsFromOutput(o: any, cfg: Pick<PortalConfig, 'baseUrl' | 'k
     pinned,
     url: ticketUrl(cfg.baseUrl, id),
   };
-  return { ticket, stateModel: str(t.CurrentMainState?.StateModel?.Name), slaStartDate: str(t.SLAStartDate), createdBy: str(t.CreatedBy), articles };
+  return { ticket, stateModel: str(d(cms?.StateModel)?.Name), slaStartDate: str(t.SLAStartDate), createdBy: str(t.CreatedBy), articles };
 }
 
 /** Pinned rows keep list numbers (replies, work items) and gain the details-only fields. */
@@ -142,6 +162,8 @@ function writeStore(s: PinStore): void {
   fs.renameSync(tmp, storeFile);
 }
 export const validTicketId = (id: string) => /^\d{10,25}$/.test(id);
+/** Forget the cached ticket list (after a portal write). */
+export function invalidateList(): void { listCache = null; }
 
 export function setPin(id: string, on: boolean): void {
   const s = readStore();

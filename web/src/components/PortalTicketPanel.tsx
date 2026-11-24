@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PortalArticle, PortalTicketDetails, PortalTicketRow } from '../../../server/src/types';
+import type { PortalActionResult, PortalArticle, PortalTicketDetails, PortalTicketOptions, PortalTicketRow } from '../../../server/src/types';
 import { api } from '../api';
 import HtmlFrame from './HtmlFrame';
+import PortalActionDialog, { type ActionKind } from './PortalActionDialog';
+import { toast } from './Toasts';
 
 interface Props {
   /** the row as listed (shown immediately; the conversation loads on top) */
@@ -11,6 +13,8 @@ interface Props {
   onStep: (delta: -1 | 1) => void;
   onTogglePin: (row: PortalTicketRow) => void;
   busy?: boolean;
+  /** a write succeeded: the page should refresh its list */
+  onChanged?: () => void;
 }
 
 const fmtDate = (s: string | null | undefined) => (s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString() : '');
@@ -29,12 +33,17 @@ function readWidth(): number {
 
 const isInternal = (a: PortalArticle) => /internal/i.test(a.type);
 
-export default function PortalTicketPanel({ row, onClose, onStep, onTogglePin, busy }: Props) {
+export default function PortalTicketPanel({ row, onClose, onStep, onTogglePin, busy, onChanged }: Props) {
   const [d, setD] = useState<PortalTicketDetails | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const body = useRef<HTMLDivElement>(null);
   const id = row.id;
+  const [opts, setOpts] = useState<PortalTicketOptions | null>(null);
+  const [optsErr, setOptsErr] = useState<string | null>(null);
+  const [optsLoading, setOptsLoading] = useState(true);
+  const [action, setAction] = useState<ActionKind | null>(null);
+  const [reloadN, setReloadN] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -53,7 +62,36 @@ export default function PortalTicketPanel({ row, onClose, onStep, onTogglePin, b
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, reloadN]);
+
+  const loadOptions = (isLive: () => boolean) => {
+    setOptsLoading(true);
+    setOptsErr(null);
+    return api.portal
+      .options(id)
+      .then((o) => isLive() && setOpts(o))
+      .catch((e) => isLive() && setOptsErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => isLive() && setOptsLoading(false));
+  };
+  useEffect(() => {
+    let live = true;
+    setOpts(null);
+    setAction(null);
+    void loadOptions(() => live);
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, reloadN]);
+
+  const done = (r: PortalActionResult) => {
+    toast('ok', r.summary);
+    setAction(null);
+    if (r.details) setD(r.details);
+    else setReloadN((n) => n + 1);
+    void loadOptions(() => true);
+    onChanged?.();
+  };
 
   // Keys: Esc closes, ↑/↓ step — unless the user is typing, editing a grid cell, or another dialog/menu is open.
   useEffect(() => {
@@ -157,6 +195,24 @@ export default function PortalTicketPanel({ row, onClose, onStep, onTogglePin, b
           </div>
         </div>
       </div>
+      <div className="pt-actions-bar" role="toolbar" aria-label="Ticket actions">
+        {optsLoading && !opts && <span className="pt-opt-skel" aria-label="Loading actions" />}
+        {optsErr && <span className="muted">Actions unavailable: {optsErr}</span>}
+        {opts && (
+          <>
+            <button onClick={() => setAction({ type: 'assign' })} title={t.agent ? `Currently assigned to ${t.agent}` : 'Assign this ticket to you'}>
+              Assign to me
+            </button>
+            {opts.transitions.map((to) => (
+              <button key={to} onClick={() => setAction({ type: 'state', to })} title={`Change state from ${opts.state} to ${to}`}>
+                {/^closed$/i.test(to) ? 'Close…' : to}
+              </button>
+            ))}
+            <button onClick={() => setAction({ type: 'reply' })}>Reply…</button>
+            <button onClick={() => setAction({ type: 'link' })}>Link work items…</button>
+          </>
+        )}
+      </div>
       <div className="ui-details-body" ref={body}>
         <dl className="detail-grid">
           {field('Customer', t.customer)}
@@ -217,6 +273,19 @@ export default function PortalTicketPanel({ row, onClose, onStep, onTogglePin, b
       <div className="ui-details-foot">
         <span className="grow">Esc closes · ↑/↓ previous / next row · drag the left edge to resize</span>
       </div>
+      {action && opts && (
+        <PortalActionDialog
+          ticket={t}
+          options={opts}
+          kind={action}
+          onClose={() => setAction(null)}
+          onDone={done}
+          onReload={() => {
+            setAction(null);
+            setReloadN((n) => n + 1);
+          }}
+        />
+      )}
     </aside>
   );
 }

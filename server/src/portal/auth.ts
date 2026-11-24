@@ -165,6 +165,14 @@ export async function accessToken(force = false): Promise<string> {
   return refreshing;
 }
 
+/** Mail address of the signed-in user (lower-cased account claim), or null when not signed in. */
+export function signedInAccount(): string | null {
+  if (!tokens) return null;
+  const c = claims(tokens.access);
+  const v = [c.email, c.upn, c.userAccount, c.sub].find((x) => typeof x === 'string' && x.includes('@'));
+  return typeof v === 'string' ? v.toLowerCase() : null;
+}
+
 export interface PortalStatus { signedIn: boolean; user?: string; email?: string; expiresAt?: string; remembered: boolean; error?: string }
 
 export async function status(): Promise<PortalStatus> {

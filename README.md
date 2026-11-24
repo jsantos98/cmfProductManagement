@@ -123,9 +123,20 @@ Right-click a row (view or edit mode; with several rows selected it acts on all 
 - **My requests**: the tickets you pin. They are listed whatever their state, with the last reply (who, role, when) and *waiting for support*.
 - **Suggestions**: open tickets (`openStates`) of the request type owned by `ownershipRole` whose title or text contains one of the `keywords` (whole words, case-insensitive). **Pin** moves one to My requests; **Dismiss** hides it. Pins and dismissals are local, in `data\portal-pins.json`.
 - Click a row for the details panel: properties and the conversation, including internal notes (the HTML is shown in a sandboxed frame).
-- Settings are the `portal` block of the config (keywords, request type, ownership role, open states, endpoints). Nothing is written to the portal yet. Assign, Assessed, Close, Reply and work item links come later, each behind a confirmation.
+- Settings are the `portal` block of the config (keywords, request type, ownership role, open states, endpoints).
 
-API: `GET /api/portal/status`, `GET /api/portal/login`, `POST /api/portal/logout`, `GET /api/portal/requests[?refresh=1]`, `GET /api/portal/tickets/<id>`, `POST|DELETE /api/portal/pins/<id>`, `POST|DELETE /api/portal/dismissed/<id>`.
+**Actions** (details panel). Each opens a confirmation dialog. The dialog runs a dry run first and shows what will be sent; only its primary button writes to the portal.
+
+| Action | Portal service | Notes |
+|---|---|---|
+| Assign to me | `Ticket/AssignTicketToCurrentUser` | Sets you as the ticket's agent. |
+| Assessed / Resolved / Close… | `Ticket/ChangeTicketState` | Only the transitions the ticket's state model allows from its current state (enhancement requests: Open → Assessed or Closed, Assessed → Resolved, Resolved → Closed). Close needs a reason; *Other* also needs a comment. |
+| Reply… | `Ticket/ReplyToTicket` | *Internal note* (default, not visible to the customer), *Public note* or *Reply*. The last two go to the last sender, with the same CC. The text is sent as plain paragraphs. |
+| Link work items… | `Ticket/FullUpdateTicket` | TFS ids from the Product collection, checked first with `Ticket/GetTfsWorkItem`. Links already on the ticket are kept. |
+
+Before each write the server re-reads the ticket. If it changed since you opened it, nothing is written and you are asked to reload (HTTP 409). Each write is logged in `data\changes.jsonl` with `kind: "portal"`. The text of a reply is not logged, only its length and the first 120 characters. The state model and close reasons are read from the portal and cached for 12 hours.
+
+API: `GET /api/portal/status`, `GET /api/portal/login`, `POST /api/portal/logout`, `GET /api/portal/requests[?refresh=1]`, `GET /api/portal/tickets/<id>`, `GET /api/portal/tickets/<id>/options`, `GET /api/portal/workitems/<tfsId>`, `POST /api/portal/tickets/<id>/action[?dryRun=1]` (`{ expectedModifiedOn, action: "assign-to-me" | "state" | "reply" | "link-work-items", … }`), `POST|DELETE /api/portal/pins/<id>`, `POST|DELETE /api/portal/dismissed/<id>`.
 
 ## Editing workflow
 
