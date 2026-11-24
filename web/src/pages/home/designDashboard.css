@@ -1,4 +1,4 @@
-/* Home design "Dashboard" (theme B). All colours come from the theme tokens in styles.css. */
+/* Home design "Dashboard". All colours come from the theme tokens in styles.css. */
 .dB { background: var(--bg); color: var(--text); font-size: 13px; min-height: 100%; padding-bottom: 72px; font-variant-numeric: tabular-nums;
   container-type: inline-size; min-width: 0; }
 .dB * { box-sizing: border-box; }

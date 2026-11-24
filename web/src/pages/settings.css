@@ -26,31 +26,6 @@
 .st-field-wide { width: 100%; }
 .st-field-wide input { width: 100%; }
 .st-num { width: 70px; }
-.st-theme-pick { display: flex; gap: 12px; flex-wrap: wrap; }
-.st-theme { display: flex; flex-direction: column; gap: 8px; width: 240px; padding: 10px; text-align: left; border: 2px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; height: auto; }
-.st-theme:hover { border-color: var(--border-strong); }
-.st-theme.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
-.st-theme-name { font-weight: 600; }
-.st-theme-hint { font-size: var(--fs-sm); color: var(--muted); white-space: normal; }
-/* previews paint the *other* theme, so these colours are intentionally fixed */
-.st-prev { display: flex; height: 54px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
-.st-prev-shell { width: 30%; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
-.st-prev-shell i { display: block; height: 5px; border-radius: 2px; opacity: 0.55; }
-.st-prev-shell i.act { opacity: 1; }
-.st-prev-main { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 6px; }
-.st-prev-main i { display: block; height: 7px; border-radius: 2px; }
-.st-prev-b .st-prev-shell { background: #0b2545; }
-.st-prev-b .st-prev-shell i { background: #8ea3bf; }
-.st-prev-b .st-prev-shell i.act { background: #1ec8c8; }
-.st-prev-b .st-prev-main { background: #eef2f6; }
-.st-prev-b .st-prev-main i { background: #d8dee6; }
-.st-prev-b .st-prev-main i.acc { background: #0e8f93; width: 40%; }
-.st-prev-a .st-prev-shell { background: #f7f8fa; }
-.st-prev-a .st-prev-shell i { background: #c3c8d4; }
-.st-prev-a .st-prev-shell i.act { background: #3b5bdb; }
-.st-prev-a .st-prev-main { background: #ffffff; }
-.st-prev-a .st-prev-main i { background: #e6e8ee; }
-.st-prev-a .st-prev-main i.acc { background: #3b5bdb; width: 40%; }
 
 .st-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 0 0 12px; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .st-savebar b { color: var(--text); }

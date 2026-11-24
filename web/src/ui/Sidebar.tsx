@@ -1,6 +1,5 @@
-// Left sidebar: Home, one group per area (Backlog / To validate with badges), Settings; health + theme in the footer.
+// Left sidebar: Home, one group per area (Backlog / To validate with badges), Settings; health in the footer.
 import type { BacklogDef, HealthResponse } from '../../../server/src/types';
-import { THEMES, useTheme } from './theme';
 
 export type NavTarget = { kind: 'home' } | { kind: 'settings' } | { kind: 'area'; id: string; view: 'backlog' | 'validate' };
 
@@ -56,7 +55,6 @@ function Health({ h, err }: { h: HealthResponse | null; err: string | null }) {
 }
 
 export default function Sidebar(p: Props) {
-  const [theme, setTheme] = useTheme();
   const link = (t: NavTarget, icon: string, label: string, extra?: React.ReactNode, sub = false, title?: string) => {
     const on = same(t, p.current);
     return (
@@ -151,13 +149,6 @@ export default function Sidebar(p: Props) {
       </nav>
       <div className="ui-sidebar-foot">
         <Health h={p.health} err={p.healthErr} />
-        <div className="ui-theme-switch" role="radiogroup" aria-label="Theme">
-          {THEMES.map((t) => (
-            <button key={t.id} role="radio" aria-checked={theme === t.id} className={theme === t.id ? 'on' : ''} title={t.hint} onClick={() => setTheme(t.id)}>
-              {t.name}
-            </button>
-          ))}
-        </div>
         <div className="ui-sidebar-actions">
           <button onClick={p.onToggleCollapsed} title={p.collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={p.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             {p.collapsed ? '»' : '« Collapse'}

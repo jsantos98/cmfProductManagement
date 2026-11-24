@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import type { BacklogDef, Band, SettingsDto } from '../../../server/src/types';
 import { api } from '../api';
 import { PageHeader, Skeleton } from '../ui/kit';
-import { THEMES, useTheme } from '../ui/theme';
 import './settings.css';
 
 interface Props {
@@ -26,7 +25,6 @@ const SECTIONS: { id: string; label: string }[] = [
   { id: 'bands', label: 'Bands' },
   { id: 'components', label: 'Components' },
   { id: 'fields', label: 'Editable fields' },
-  { id: 'appearance', label: 'Appearance' },
 ];
 
 /** Editing row: the BacklogDef plus UI-only state (stripped before saving). */
@@ -162,7 +160,6 @@ export default function SettingsPage({ onSaved }: Props) {
   const [rows, setRows] = useState<BacklogRow[]>([]);
   const [baseline, setBaseline] = useState<string>('');
   const [active, setActive] = useState(SECTIONS[0].id);
-  const [theme, setTheme] = useTheme();
   const keySeq = useRef(0);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -497,29 +494,6 @@ export default function SettingsPage({ onSaved }: Props) {
             <label className="field st-field-wide">State options (comma separated)
               <input value={statesText} onChange={(e) => setST(e.target.value)} />
             </label>
-          </Section>
-
-          <Section id="appearance" title="Appearance">
-            <p className="muted">Theme of this app. Stored in this browser only; it is not saved to the server and not part of "Save".</p>
-            <div className="st-theme-pick" role="radiogroup" aria-label="Theme">
-              {THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === t.id}
-                  className={'st-theme' + (theme === t.id ? ' on' : '')}
-                  onClick={() => setTheme(t.id)}
-                >
-                  <span className={`st-prev st-prev-${t.id}`} aria-hidden>
-                    <span className="st-prev-shell"><i className="act" /><i /><i /></span>
-                    <span className="st-prev-main"><i className="acc" /><i /><i /></span>
-                  </span>
-                  <span className="st-theme-name">{t.name}</span>
-                  <span className="st-theme-hint">{t.hint}</span>
-                </button>
-              ))}
-            </div>
           </Section>
 
           {dirty && (

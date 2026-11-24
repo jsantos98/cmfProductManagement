@@ -1,7 +1,6 @@
 /* =================================================================================================================
-   PM Cockpit — design tokens + global styles.
-   Two themes while João picks a direction: [data-theme="b"] Control room (navy shell, teal) and
-   [data-theme="a"] Inbox (light shell, blue). Everything below uses tokens; only the two token blocks differ.
+   PM Cockpit — design tokens + global styles ("Control room": navy shell, teal accent, compact).
+   Everything below uses the tokens; change the look by changing the token block.
    ================================================================================================================= */
 
 :root {
@@ -47,9 +46,8 @@
   --seg-other: #ffb74d;
 }
 
-/* ---- Theme B: Control room ---- */
-:root,
-:root[data-theme='b'] {
+/* ---- Theme: Control room ---- */
+:root {
   --bg: #eef2f6;
   --surface: #ffffff;
   --surface-2: #f6f8fb;
@@ -105,64 +103,6 @@
   --tint-bug-hover: #f9d6d4;
   --cell-edited: #fff2a8;
   --cell-error: #fde0dd;
-}
-
-/* ---- Theme A: Inbox ---- */
-:root[data-theme='a'] {
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f7f8fa;
-  --surface-hover: #f3f5f9;
-  --border: #e6e8ee;
-  --border-strong: #d3d7e0;
-  --text: #1c1f26;
-  --muted: #6b7180;
-  --accent: #3b5bdb;
-  --accent-strong: #2f4bc0;
-  --accent-soft: #edf1fe;
-  --accent-text: #ffffff;
-  --focus: rgba(59, 91, 219, 0.3);
-  --link: #3b5bdb;
-  --selected: #e6ecfd;
-
-  --shell-bg: #f7f8fa;
-  --shell-solid: #f7f8fa;
-  --shell-text: #2a2f3a;
-  --shell-muted: #7c8293;
-  --shell-hover: #eceef3;
-  --shell-active-bg: #e3e8fb;
-  --shell-active-text: #1d2a6b;
-  --shell-active-bar: #3b5bdb;
-  --shell-border: #e6e8ee;
-
-  --header-bg: #ffffff;
-  --header-text: #1c1f26;
-  --header-muted: #6b7180;
-  --header-border: #e6e8ee;
-
-  --tile-bg: #ffffff;
-  --tile-border: #e6e8ee;
-  --tile-active-bg: #edf1fe;
-  --tile-active-border: #3b5bdb;
-
-  --shadow-sm: 0 1px 2px rgba(20, 24, 36, 0.05);
-  --shadow: 0 4px 16px rgba(20, 24, 36, 0.08);
-  --shadow-lg: 0 16px 48px rgba(20, 24, 36, 0.18);
-
-  --row-h: 32px;
-  --head-h: 34px;
-  --control-h: 28px;
-
-  --tint-epic: #fff8ef;
-  --tint-epic-hover: #fff0dc;
-  --tint-feature: #faf5ff;
-  --tint-feature-hover: #f2e8fd;
-  --tint-story: #ffffff;
-  --tint-story-hover: #f3f5f9;
-  --tint-bug: #fff6f5;
-  --tint-bug-hover: #fdeceb;
-  --cell-edited: #fff6c2;
-  --cell-error: #fde8e6;
 }
 
 /* =================================================================================================================
@@ -292,16 +232,12 @@ a.pr-chip:hover { filter: brightness(0.96); }
 .ui-sidebar-actions { display: flex; gap: 4px; }
 .ui-sidebar-actions button { flex: 1; background: transparent; color: var(--shell-text); border-color: var(--shell-border); font-size: var(--fs-sm); }
 .ui-sidebar-actions button:hover:not(:disabled) { background: var(--shell-hover); }
-.ui-theme-switch { display: flex; padding: 2px; border-radius: var(--radius); background: var(--shell-hover); gap: 2px; }
-.ui-theme-switch button { flex: 1; min-height: 24px; padding: 2px 6px; border: 0; background: transparent; color: var(--shell-muted); font-size: var(--fs-xs); }
-.ui-theme-switch button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow-sm); }
 .app.sidebar-collapsed .ui-nav-label,
 .app.sidebar-collapsed .ui-nav-badges,
 .app.sidebar-collapsed .ui-nav-section,
 .app.sidebar-collapsed .ui-nav-area span:not(.dot),
 .app.sidebar-collapsed .ui-brand-text,
-.app.sidebar-collapsed .ui-health b,
-.app.sidebar-collapsed .ui-theme-switch { display: none; }
+.app.sidebar-collapsed .ui-health b { display: none; }
 .app.sidebar-collapsed .ui-nav-link.sub { padding-left: 10px; }
 .app.sidebar-collapsed .ui-nav-area { justify-content: center; margin: 10px 0 2px; }
 .app.sidebar-collapsed .ui-sidebar-actions { flex-direction: column; }
@@ -322,10 +258,9 @@ body.details-open main { margin-right: var(--details-w); }
 .ui-page-head h1 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ui-page-head-meta { font-size: var(--fs-sm); color: var(--header-muted); white-space: nowrap; }
 .ui-page-head-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
-:root[data-theme='b'] .ui-page-head button:not(.primary),
-:root:not([data-theme]) .ui-page-head button:not(.primary) { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
-:root[data-theme='b'] .ui-page-head button:not(.primary):hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
-:root[data-theme='b'] .ui-page-head .ui-switch { color: #fff; }
+.ui-page-head button:not(.primary) { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
+.ui-page-head button:not(.primary):hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+.ui-page-head .ui-switch { color: #fff; }
 .ui-tabs { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--radius); background: rgba(127, 140, 160, 0.16); }
 .ui-tabs a, .ui-tabs button { padding: 4px 12px; border: 0; border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-size: var(--fs-sm); font-weight: 600; opacity: 0.75; min-height: 26px; display: inline-flex; align-items: center; gap: 6px; background: transparent; }
 .ui-tabs a.on, .ui-tabs button.on { background: var(--surface); color: var(--text); opacity: 1; box-shadow: var(--shadow-sm); }
@@ -574,7 +509,7 @@ body.details-open .ui-selectionbar { left: calc((100vw + var(--sidebar-w) - var(
 .backlog-table .wiql-row textarea { width: 100%; }
 
 /* =================================================================================================================
-   Home (classic card grid; kept for the transition, Home now follows the theme)
+   Home (progress segments + design host)
    ================================================================================================================= */
 .progress { display: flex; flex: 1; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); min-width: 80px; }
 .progress .seg { display: block; min-width: 3px; }

@@ -3,8 +3,6 @@ import type { BacklogDef } from '../../../server/src/types';
 import ItemDetailsModal from '../components/ItemDetailsModal';
 import { useHomeData } from './home/kit';
 import DesignDashboard from './home/DesignDashboard';
-import DesignInbox from './home/DesignInbox';
-import { useTheme } from '../ui/theme';
 
 interface Props {
   active: boolean;
@@ -14,9 +12,8 @@ interface Props {
   me?: string;
 }
 
-/** Home follows the theme: Control room (B) → Dashboard design, Inbox (A) → Inbox design. Same live data. */
+/** Home: the Dashboard design (KPI tiles, drill-down table, feature progress) on live data. */
 export default function HomePage({ active, backlogs, onAttentionChanged, me }: Props) {
-  const [theme] = useTheme();
   const home = useHomeData(active);
   const [detail, setDetail] = useState<{ id: number; list: number[] } | null>(null);
 
@@ -28,10 +25,9 @@ export default function HomePage({ active, backlogs, onAttentionChanged, me }: P
       return i < 0 || j < 0 || j >= d.list.length ? d : { ...d, id: d.list[j] };
     });
 
-  const Design = theme === 'a' ? DesignInbox : DesignDashboard;
   return (
-    <div className={'page home-design design-' + (theme === 'a' ? 'inbox' : 'dashboard') + (active ? '' : ' hidden')}>
-      <Design
+    <div className={'page home-design design-dashboard' + (active ? '' : ' hidden')}>
+      <DesignDashboard
         data={home.data}
         backlogs={backlogs}
         open={(id, list) => setDetail({ id, list })}

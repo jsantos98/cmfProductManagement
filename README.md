@@ -47,18 +47,16 @@ Server on :5180 (watch mode) and Vite on :5181. Open <http://127.0.0.1:5181> in 
 - `config/default.json`: committed defaults (port, TFS server, backlogs, WIQL template, score bands, component rules, version tags, editable fields). **Min ver / Max ver** are not configured: they are the lowest and highest version-like tags of the item (`12.0x`, `12.0.x`, `12.0`, `11x`, `12.1.0` …; a line tag such as `12.1x` is the start of its line for Min and the whole line for Max).
 - `config.local.json`: personal overrides, gitignored. Edit it from the **Settings** page in the app. A legacy `wiql` key is ignored and removed on the next save.
 
-### Layout and themes
+### Layout
 
-- **Sidebar** (left): **Home**, then each area with **Backlog** and **To validate**, and **Settings** at the bottom. Badges show pending edits (orange), comments waiting for you (💬) and items to validate. The footer shows the TFS connection (green dot = connected), the theme switch and **« Collapse** (icons only; remembered in the browser).
-- **Themes**: two directions to choose from, switchable in the sidebar footer or **Settings > Appearance** (stored in this browser only, `cmfpm.theme.v1`):
-  - **Control room**: navy sidebar and header band, teal accent, compact rows (default).
-  - **Inbox**: light sidebar, blue accent, airier rows.
+- **Sidebar** (left): **Home**, then each area with **Backlog** and **To validate**, and **Settings** at the bottom. Badges show pending edits (orange), comments waiting for you (💬) and items to validate. The footer shows the TFS connection (green dot = connected) and **« Collapse** (icons only; remembered in the browser).
+- **Look** ("Control room"): navy sidebar and header band, teal accent, compact rows. All colours, sizes and the AG Grid theme come from the tokens at the top of `web\src\styles.css`.
 - **Pages**: a header band (area, title, Backlog | To validate tabs, actions), then KPI tiles (click to filter), a filter bar (search + removable filter chips + page controls) and the grid.
 - **Item details** open in a **side panel on the right** (click a row; on Home click an item). The grid stays usable and the open row is highlighted. ↑/↓ steps through the rows (or the card's list on Home), Esc closes, **TFS ↗** opens it in TFS; drag the panel's left edge to resize it (remembered, `cmfpm.detailsWidth.v1`).
 
 ### Home
 
-The app opens on **Home** (`#/`). Its look follows the theme: **Control room** shows a dashboard (KPI tiles; click one to see its list as a table, plus a Feature progress panel), **Inbox** shows one action list (sections on the left, j/k to move, Enter to open, In flight and Next version on the right). Both show the same data, reload every 5 minutes while Home is visible and when you come back to it after more than a minute; **↻ Refresh** reloads everything from TFS.
+The app opens on **Home** (`#/`): a dashboard of KPI tiles (click one to see its list as a sortable table below) with a Feature progress panel on the right. It reloads every 5 minutes while Home is visible and when you come back to it after more than a minute; **↻ Refresh** reloads everything from TFS.
 
 | Section | Contents |
 |---|---|
