@@ -242,6 +242,7 @@ label.field { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; ma
 .pr-chip {display: inline-block; padding: 0 7px; border-radius: 9px; background: #e3ecfb; color: #1f4fa3; border: 1px solid #b8cdf2; font-size: 12px; font-weight: 600; line-height: 17px; text-decoration: none; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 a.pr-chip:hover { background: #cfdef8; }
 .pr-chip.other { background: #eef0f3; color: #555; border-color: #d3d7de; font-weight: 500; }
+.listed-feature { display: inline-block; padding: 0 7px; border-radius: 9px; background: #f1e8fb; color: #6a1b9a; border: 1px solid #dcc6f0; font-size: 12px; font-weight: 600; line-height: 17px; white-space: nowrap; }
 .pr-chip.nopr { background: #fdecea; color: var(--bad); border-color: #f0b4ae; }
 .pr-chip.unknown { background: #f3f3f3; color: var(--muted); border-color: #ddd; font-weight: 500; }
 .ag-theme-quartz .ag-row.row-nopr { box-shadow: inset 4px 0 0 var(--bad); }

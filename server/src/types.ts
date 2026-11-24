@@ -39,6 +39,9 @@ export interface AppConfig {
   validation: {
     /** must contain {{areaPath}} */
     wiqlTemplate: string;
+    /** Link query (WorkItemLinks, one hop) of the Resolved items under Features assigned to me; its targets are added
+     *  to the list. Must contain {{areaPath}}; blank/absent = off. */
+    featureWiqlTemplate?: string;
     /** work item type -> System.Reason when closing (validated) */
     close: Record<string, string>;
     /** work item type -> System.Reason when rejecting (back to Active) */
@@ -138,6 +141,8 @@ export interface ItemChangeResult {
 export interface PrRef { id: number; repo: string; target: string; version: string | null; url: string; closedDate: string }
 export interface ValidationItem extends BacklogItem {
   resolvedDate: string; resolvedBy: string; resolvedReason: string;
+  /** Listed only because its parent Feature is assigned to me (the item itself is not). */
+  viaFeature?: boolean;
   /** Completed PRs only. Undefined = the links could not be read (unknown, not "no PR"). */
   prs?: PrRef[];
   /** Linked PRs that are still active (not completed). */

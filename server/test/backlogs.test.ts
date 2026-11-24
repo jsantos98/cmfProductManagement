@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { effectiveWiql, validateSettings, SettingsError } from '../src/config.js';
+import { effectiveWiql, validateSettings, validationFeatureWiql, SettingsError } from '../src/config.js';
 import type { AppConfig, BacklogDef, SettingsDto } from '../src/types.js';
 
 const cfg = JSON.parse(readFileSync(new URL('../../config/default.json', import.meta.url), 'utf8')) as AppConfig;
@@ -63,5 +63,26 @@ describe('validateSettings (backlogs)', () => {
   });
   it('does not require the placeholder when every backlog overrides', () => {
     expect(() => validateSettings(settings({ wiqlTemplate: '', backlogs: [def({ wiql: 'SELECT 1' })] }))).not.toThrow();
+  });
+});
+
+describe('validation: items under my Features', () => {
+  const v = (featureWiqlTemplate: unknown) => settings({ validation: { ...cfg.validation, featureWiqlTemplate } as AppConfig['validation'] });
+  it('fills the area into the Feature link query', () => {
+    const q = validationFeatureWiql(def({ areaPath: "Product\O'Brien" }), cfg);
+    expect(q).toContain("[Target].[System.AreaPath] UNDER 'Product\O''Brien'");
+    expect(q).toContain('FROM WorkItemLinks');
+  });
+  it('is off when the template is blank or absent', () => {
+    const off = { ...cfg, validation: { ...cfg.validation, featureWiqlTemplate: '  ' } };
+    expect(validationFeatureWiql(def(), off)).toBeNull();
+    const { featureWiqlTemplate: _f, ...rest } = cfg.validation;
+    expect(validationFeatureWiql(def(), { ...cfg, validation: rest })).toBeNull();
+  });
+  it('accepts blank, rejects a template without the placeholder or a non-string', () => {
+    expect(() => validateSettings(v(''))).not.toThrow();
+    expect(() => validateSettings(v(undefined))).not.toThrow();
+    expect(() => validateSettings(v('SELECT 1'))).toThrow(SettingsError);
+    expect(() => validateSettings(v(42))).toThrow(SettingsError);
   });
 });

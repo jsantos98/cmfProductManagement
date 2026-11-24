@@ -10,6 +10,7 @@
   "wiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.State] IN ('New','Active') ORDER BY [Custom.BusinessOrder]",
   "validation": {
     "wiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.State] = 'Resolved' AND [System.AssignedTo] = @Me ORDER BY [Microsoft.VSTS.Common.ResolvedDate]",
+    "featureWiqlTemplate": "SELECT [System.Id] FROM WorkItemLinks WHERE ([Source].[System.TeamProject] = 'Product' AND [Source].[System.WorkItemType] = 'Feature' AND [Source].[System.AssignedTo] = @Me) AND ([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward') AND ([Target].[System.AreaPath] UNDER '{{areaPath}}' AND [Target].[System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [Target].[System.State] = 'Resolved') MODE (MustContain)",
     "close": { "Bug": "Verified", "User Story": "Acceptance tests pass", "Feature": "Acceptance tests pass", "Epic": "Acceptance tests pass" },
     "reject": { "Bug": "Test Failed", "User Story": "Acceptance tests fail", "Feature": "Acceptance tests fail", "Epic": "Acceptance tests fail" }
   },

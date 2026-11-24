@@ -27,6 +27,17 @@ export class TfsError extends Error {
   constructor(message: string, public status?: number) { super(message); }
 }
 
+/** Ids from a WIQL response: flat queries list `workItems`; link (one-hop) queries list the linked targets in
+ *  `workItemRelations` (rows without a source are the query's source items and are skipped). */
+export function wiqlIds(r: any): number[] {
+  if (Array.isArray(r?.workItemRelations)) {
+    const ids = new Set<number>();
+    for (const x of r.workItemRelations) if (x?.source && x?.target) ids.add(x.target.id as number);
+    return [...ids];
+  }
+  return (r?.workItems ?? []).map((w: any) => w.id as number);
+}
+
 export class TfsClient implements TfsApi {
   private base: string;
   private auth: string;
@@ -93,7 +104,7 @@ export class TfsClient implements TfsApi {
   async wiql(query: string): Promise<number[]> {
     const url = `${this.base}/${this.config.tfs.project}/_apis/wit/wiql?${this.api}`;
     const r = await this.request<any>('POST', url, { query });
-    return (r.workItems ?? []).map((w: any) => w.id as number);
+    return wiqlIds(r);
   }
 
   async getItems(ids: number[], fields: string[]): Promise<RawItem[]> {

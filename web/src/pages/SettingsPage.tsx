@@ -264,6 +264,12 @@ export default function SettingsPage({ onSaved }: Props) {
         <h3>Validation ("To validate" view)</h3>
         <p className="muted">WIQL for Resolved items assigned to you. <code>{'{{areaPath}}'}</code> is replaced by each backlog's area path.</p>
         <textarea rows={6} value={s.validation.wiqlTemplate} onChange={(e) => setVal({ wiqlTemplate: e.target.value })} />
+        <h4>Items under my Features</h4>
+        <p className="muted">
+          Link query (<code>FROM WorkItemLinks</code>, one hop) of Resolved items whose parent Feature is assigned to you; its linked
+          items are added to the list. Must contain <code>{'{{areaPath}}'}</code>; leave empty to turn it off.
+        </p>
+        <textarea rows={6} value={s.validation.featureWiqlTemplate ?? ''} onChange={(e) => setVal({ featureWiqlTemplate: e.target.value })} />
         <ReasonTable title="Close (validated)" hint="System.Reason set when closing, per work item type." map={s.validation.close} onChange={(m) => setVal({ close: m })} />
         <ReasonTable title="Reject (back to Active)" hint="System.Reason set when rejecting, per work item type." map={s.validation.reject} onChange={(m) => setVal({ reject: m })} />
       </section>

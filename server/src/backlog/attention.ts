@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { effectiveWiql, getBacklogDef, getConfig, repoRoot, validationWiql } from '../config.js';
+import { effectiveWiql, getBacklogDef, getConfig, repoRoot } from '../config.js';
 import type { TfsClient } from '../tfs/client.js';
 import type { AttentionEntry, AttentionResponse } from '../types.js';
 
@@ -84,16 +84,19 @@ export async function getAttention(backlogId: string, view?: 'validate'): Promis
   const def = getBacklogDef(backlogId);
   if (!def) throw new Error(`Unknown backlog ${backlogId}`);
   const cfg = getConfig();
-  return scanAttention(backlogId, view === 'validate' ? validationWiql(def, cfg) : effectiveWiql(def, cfg));
+  if (view !== 'validate') return scanAttention(backlogId, effectiveWiql(def, cfg));
+  // imported lazily: validation.ts imports this module
+  const { validationIds } = await import('./validation.js');
+  return scanAttention(backlogId, async (client) => (await validationIds(client, def, cfg)).ids);
 }
 
-/** Scan the items returned by a WIQL for comments waiting for me (shared comment cache and acks). */
-export async function scanAttention(backlogId: string, wiql: string): Promise<AttentionResponse> {
+/** Scan the items returned by a WIQL (or an id lookup) for comments waiting for me (shared comment cache and acks). */
+export async function scanAttention(backlogId: string, query: string | ((client: TfsClient) => Promise<number[]>)): Promise<AttentionResponse> {
   // imported lazily: service.ts imports this module
   const { getMe, getClient } = await import('./service.js');
   const client = getClient() as TfsClient;
   const me = await getMe();
-  const ids = await client.wiql(wiql);
+  const ids = typeof query === 'string' ? await client.wiql(query) : await query(client);
   const fresh = ids.length ? await client.getItems(ids, ['System.Rev', 'System.CommentCount']) : [];
   const todo = fresh
     .map(r => ({ id: r.id, rev: r.rev, commentCount: Number(r.fields['System.CommentCount'] ?? 0) }))

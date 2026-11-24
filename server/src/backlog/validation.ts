@@ -1,11 +1,11 @@
-import { getBacklogDef, getConfig, validationWiql } from '../config.js';
+import { getBacklogDef, getConfig, validationFeatureWiql, validationWiql } from '../config.js';
 import type { PatchOp, TfsApi } from '../tfs/client.js';
 import { TFS_FIELDS, toBacklogItem } from './derive.js';
 import { audit, defaultAuditPath } from './changes.js';
 import { attachPrs } from './pullRequests.js';
 import { getAttention } from './attention.js';
 import { getClient, invalidateBacklog, parentTitles } from './service.js';
-import type { AppConfig, ChangesResponse, ItemChangeResult, SummaryResponse, TransitionRequest, ValidationItem, ValidationResponse } from '../types.js';
+import type { AppConfig, BacklogDef, ChangesResponse, ItemChangeResult, SummaryResponse, TransitionRequest, ValidationItem, ValidationResponse } from '../types.js';
 
 const VALIDATION_FIELDS = [...TFS_FIELDS, 'Microsoft.VSTS.Common.ResolvedDate', 'Microsoft.VSTS.Common.ResolvedBy', 'System.Reason'];
 
@@ -13,10 +13,28 @@ interface CacheEntry { items: ValidationItem[]; loadedAt: string; wiql: string }
 const caches = new Map<string, CacheEntry>();
 const inflight = new Map<string, { wiql: string; p: Promise<void> }>();
 
-async function load(backlogId: string, wiql: string): Promise<void> {
+export interface ValidationIds { ids: number[]; viaFeature: Set<number> }
+
+/** Union of my items and the items under my Features (mine first); `viaFeature` = only in the second list. */
+export function mergeValidationIds(mine: number[], underMyFeatures: number[]): ValidationIds {
+  const own = new Set(mine);
+  const viaFeature = new Set(underMyFeatures.filter(id => !own.has(id)));
+  return { ids: [...mine, ...viaFeature], viaFeature };
+}
+
+/** Ids to validate in one backlog: Resolved items assigned to me + Resolved items whose parent Feature is mine. */
+export async function validationIds(client: TfsApi, def: BacklogDef, cfg: AppConfig): Promise<ValidationIds> {
+  const fw = validationFeatureWiql(def, cfg);
+  const [mine, under] = await Promise.all([client.wiql(validationWiql(def, cfg)), fw ? client.wiql(fw) : Promise.resolve([])]);
+  return mergeValidationIds(mine, under);
+}
+
+const queryKey = (def: BacklogDef, cfg: AppConfig) => `${validationWiql(def, cfg)}\n${validationFeatureWiql(def, cfg) ?? ''}`;
+
+async function load(backlogId: string, def: BacklogDef, key: string): Promise<void> {
   const cfg = getConfig();
   const c = getClient();
-  const ids = await c.wiql(wiql);
+  const { ids, viaFeature } = await validationIds(c, def, cfg);
   const raws = ids.length ? await c.getItems(ids, VALIDATION_FIELDS) : [];
   const titles = await parentTitles(c, raws);
   const items = raws.map((r): ValidationItem => {
@@ -26,22 +44,25 @@ async function load(backlogId: string, wiql: string): Promise<void> {
       resolvedDate: r.fields['Microsoft.VSTS.Common.ResolvedDate'] ?? '',
       resolvedBy: typeof by === 'string' ? by : (by?.displayName ?? ''),
       resolvedReason: r.fields['System.Reason'] ?? '',
+      ...(viaFeature.has(r.id) ? { viaFeature: true } : {}),
     };
   });
+  // oldest resolved first across both lists (ISO dates sort as strings; missing dates go last)
+  items.sort((a, b) => (a.resolvedDate || '~').localeCompare(b.resolvedDate || '~'));
   await attachPrs(c, items, cfg);
-  caches.set(backlogId, { items, loadedAt: new Date().toISOString(), wiql });
+  caches.set(backlogId, { items, loadedAt: new Date().toISOString(), wiql: key });
 }
 
-/** Resolved items assigned to me in one backlog's area. Reloads when refreshed, uncached, or the WIQL changed. */
+/** Resolved items to validate in one backlog's area (mine + under my Features). Reloads when refreshed, uncached, or a query changed. */
 export async function loadValidation(backlogId: string, refresh = false): Promise<ValidationResponse> {
   const def = getBacklogDef(backlogId);
   if (!def) throw new Error(`Unknown backlog ${backlogId}`);
-  const wiql = validationWiql(def, getConfig());
+  const wiql = queryKey(def, getConfig());
   const cached = caches.get(backlogId);
   if (!cached || refresh || cached.wiql !== wiql) {
     let f = inflight.get(backlogId);
     if (!f || f.wiql !== wiql) {
-      const p: Promise<void> = load(backlogId, wiql).finally(() => { if (inflight.get(backlogId)?.p === p) inflight.delete(backlogId); });
+      const p: Promise<void> = load(backlogId, def, wiql).finally(() => { if (inflight.get(backlogId)?.p === p) inflight.delete(backlogId); });
       f = { wiql, p };
       inflight.set(backlogId, f);
     }
@@ -153,11 +174,11 @@ export async function getSummary(): Promise<SummaryResponse> {
   const client = getClient();
   const backlogs = await Promise.all(cfg.backlogs.filter(b => !b.hidden).map(async (def) => {
     try {
-      const [a, v, ids] = await Promise.all([
-        getAttention(def.id), getAttention(def.id, 'validate'), client.wiql(validationWiql(def, cfg)),
+      const [a, v, val] = await Promise.all([
+        getAttention(def.id), getAttention(def.id, 'validate'), validationIds(client, def, cfg),
       ]);
       const waiting = new Set([...a.items, ...v.items].map(i => i.id)).size;
-      return { id: def.id, waiting, toValidate: ids.length };
+      return { id: def.id, waiting, toValidate: val.ids.length };
     } catch (e) {
       console.warn(`Summary for backlog ${def.id} failed: ${(e as Error).message}`);
       return { id: def.id, waiting: 0, toValidate: 0 };

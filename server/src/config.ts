@@ -26,7 +26,11 @@ function readJson(file: string): any {
 function load(): AppConfig {
   const def = readJson(defaultPath);
   const local = fs.existsSync(localPath) ? readJson(localPath) : {};
-  const merged = { ...def, ...local, tfs: { ...def.tfs, ...(local.tfs ?? {}) } };
+  const merged = {
+    ...def, ...local,
+    tfs: { ...def.tfs, ...(local.tfs ?? {}) },
+    validation: { ...def.validation, ...(local.validation ?? {}) },
+  };
   // legacy keys, ignored: single-backlog wiql; Excel-style min/max version rules (versions are parsed from tags now)
   for (const k of ['wiql', 'minVersionRules', 'maxVersionRules']) delete merged[k];
   return merged as AppConfig;
@@ -51,6 +55,12 @@ export function fillArea(template: string, areaPath: string | undefined): string
 /** WIQL of the Resolved items assigned to me in one backlog's area (always built from the area path). */
 export function validationWiql(def: BacklogDef, cfg: AppConfig): string {
   return fillArea(cfg.validation.wiqlTemplate, def.areaPath);
+}
+
+/** Link query of the Resolved items in the area whose parent Feature is assigned to me; null when not configured. */
+export function validationFeatureWiql(def: BacklogDef, cfg: AppConfig): string | null {
+  const t = cfg.validation.featureWiqlTemplate?.trim();
+  return t ? fillArea(t, def.areaPath) : null;
 }
 
 export function getBacklogDef(id: string): BacklogDef | undefined {
@@ -95,6 +105,12 @@ export function validateSettings(dto: any): asserts dto is SettingsDto {
   if (!v || typeof v !== 'object') fail('validation must be an object');
   if (typeof v.wiqlTemplate !== 'string' || !v.wiqlTemplate.trim() || !v.wiqlTemplate.includes(AREA_PLACEHOLDER)) {
     fail(`validation.wiqlTemplate must be non-empty and contain ${AREA_PLACEHOLDER}`);
+  }
+  if (v.featureWiqlTemplate !== undefined) {
+    if (typeof v.featureWiqlTemplate !== 'string') fail('validation.featureWiqlTemplate must be a string');
+    if (v.featureWiqlTemplate.trim() && !v.featureWiqlTemplate.includes(AREA_PLACEHOLDER)) {
+      fail(`validation.featureWiqlTemplate must contain ${AREA_PLACEHOLDER} (or be empty)`);
+    }
   }
   for (const k of ['close', 'reject']) {
     const m = v[k];

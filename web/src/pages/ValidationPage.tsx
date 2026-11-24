@@ -170,6 +170,21 @@ function AgeCell(p: CustomCellRendererProps<ValidationItem, number | null>) {
   return <span className={d >= 30 ? 'wait-red' : d >= 14 ? 'wait-amber' : undefined}>{d}d</span>;
 }
 
+const LISTED_ME = 'Assigned to me';
+const LISTED_FEATURE = 'My Feature';
+/** Why the item is in the list: assigned to me, or only because its parent Feature is mine (then show who has it). */
+function ListedForCell(p: CustomCellRendererProps<ValidationItem>) {
+  const it = p.data;
+  if (!it) return null;
+  if (!it.viaFeature) return <span className="muted">{LISTED_ME}</span>;
+  const who = it.assignedTo || 'unassigned';
+  return (
+    <span title={`Parent Feature #${it.parentId} ${it.parentTitle} is assigned to you; this item is assigned to ${who}`}>
+      <span className="listed-feature">{LISTED_FEATURE}</span> <span className="muted">{who}</span>
+    </span>
+  );
+}
+
 function buildColumns(ctx: Ctx): ColDef<ValidationItem>[] {
   return [
     {
@@ -224,6 +239,16 @@ function buildColumns(ctx: Ctx): ColDef<ValidationItem>[] {
       getQuickFilterText: (p) => (p.data ? [...prLabels(p.data), ...(p.data.prs ?? []).map((r) => r.target)].join(' ') : ''),
     },
     { colId: 'title', headerName: 'Title', field: 'title', flex: 1, minWidth: 300, filter: 'agTextColumnFilter' },
+    {
+      colId: 'listedFor',
+      headerName: 'Listed for',
+      headerTooltip: 'Assigned to me, or under a Feature assigned to me (the item itself is assigned to someone else)',
+      width: 230,
+      valueGetter: (p: ValueGetterParams<ValidationItem>) => (p.data ? (p.data.viaFeature ? LISTED_FEATURE : LISTED_ME) : null),
+      cellRenderer: ListedForCell,
+      filter: CheckboxFilter,
+      getQuickFilterText: (p) => (p.data ? `${p.value} ${p.data.assignedTo}` : ''),
+    },
     {
       colId: 'resolvedReason',
       headerName: 'Resolved reason',

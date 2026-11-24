@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fillArea } from '../src/config.js';
-import { transition, type TransitionDeps } from '../src/backlog/validation.js';
+import { mergeValidationIds, transition, type TransitionDeps } from '../src/backlog/validation.js';
+import { wiqlIds } from '../src/tfs/client.js';
 import { toBacklogItem } from '../src/backlog/derive.js';
 import type { PatchOp, RawItem, TfsApi } from '../src/tfs/client.js';
 import type { AppConfig, ValidationItem } from '../src/types.js';
@@ -115,5 +116,25 @@ describe('transition', () => {
     expect(lines[0]).toMatchObject({ kind: 'validation', action: 'reject', id: 1, oldRev: 20, newRev: 21, state: 'Active', reason: 'Test Failed', comment: 'nope', ok: true });
     expect(lines[1]).toMatchObject({ id: 2, ok: false });
     expect(lines[1].comment).toBe('nope');
+  });
+});
+
+describe('items under my Features', () => {
+  it('reads ids from flat and link (one-hop) WIQL responses', () => {
+    expect(wiqlIds({ workItems: [{ id: 3 }, { id: 1 }] })).toEqual([3, 1]);
+    expect(wiqlIds({
+      workItemRelations: [
+        { rel: null, source: null, target: { id: 100 } },
+        { rel: 'System.LinkTypes.Hierarchy-Forward', source: { id: 100 }, target: { id: 7 } },
+        { rel: 'System.LinkTypes.Hierarchy-Forward', source: { id: 100 }, target: { id: 8 } },
+        { rel: 'System.LinkTypes.Hierarchy-Forward', source: { id: 200 }, target: { id: 7 } },
+      ],
+    })).toEqual([7, 8]);
+    expect(wiqlIds({})).toEqual([]);
+  });
+  it('merges my items first and marks only the extra ones as via Feature', () => {
+    const r = mergeValidationIds([5, 2], [2, 9, 9, 4]);
+    expect(r.ids).toEqual([5, 2, 9, 4]);
+    expect([...r.viaFeature]).toEqual([9, 4]);
   });
 });

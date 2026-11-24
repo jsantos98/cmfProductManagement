@@ -71,7 +71,7 @@ Each area tab shows **💬N** (items with comments waiting for you, in the backl
 
 ### To validate
 
-Each area has sub-tabs **Backlog | To validate** (`#/b/<id>/validate`). To validate lists the Resolved items assigned to you in that area (Settings > Validation > WIQL template, `{{areaPath}}` = the area), oldest resolved first, with Resolved reason / by / on and **Waiting** days (amber from 14, red from 30).
+Each area has sub-tabs **Backlog | To validate** (`#/b/<id>/validate`). To validate lists the Resolved items in that area that are assigned to you, plus the Resolved items whose parent Feature is assigned to you (whoever has the item). Oldest resolved first, with Resolved reason / by / on and **Waiting** days (amber from 14, red from 30). **Listed for** says why an item is there: *Assigned to me*, or a purple **My Feature** chip with the item's own assignee. Both queries are in Settings > Validation (`{{areaPath}}` = the area); the second one is a one-hop link query (`FROM WorkItemLinks`) and can be left empty to turn it off. The ✓ tab badge and the 💬 count include both.
 
 - **PR versions**: the versions each item's **completed** pull requests went into, from any repo (`12.1/dev` → 12.1, `11.3/7/beta` → 11.3.7). Other target branches (`development`, `dev`, feature branches) show as grey chips. Each chip opens its PR; the tooltip lists all of them, plus any PR still active. The PR links are read with the list (completed PRs are cached until restart, active ones are re-read).
 - **⚠ No PR — analyse**: the item has no completed pull request (red chip, red stripe on the row). It isn't ready to validate as-is; **⚠ No PR only** in the toolbar shows just these. A grey **?** means the links could not be read from TFS.
