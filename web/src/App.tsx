@@ -294,7 +294,7 @@ export default function App() {
             />
           ))}
         {settings && visitedHome && (
-          <HomePage active={homeRoute} backlogs={tabs} onAttentionChanged={() => void loadSummary()} />
+          <HomePage active={homeRoute} backlogs={tabs} onAttentionChanged={() => void loadSummary()} me={health?.identity} />
         )}
         {settingsRoute && <SettingsPage onSaved={onSaved} />}
       </main>

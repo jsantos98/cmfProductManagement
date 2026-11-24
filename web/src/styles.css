@@ -88,7 +88,7 @@ label.field { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; ma
 .ag-cell.row-edited { border-left: 4px solid #f59e0b; }
 .ag-cell.cell-error { background: #fde0dd !important; color: var(--bad); }
 
-.pill { display: inline-block; padding: 0 8px; border-radius: 9px; font-size: 12px; line-height: 18px; color: #fff; background: #888; }
+.pill { display: inline-block; white-space: nowrap; flex: none; padding: 0 8px; border-radius: 9px; font-size: 12px; line-height: 18px; color: #fff; background: #888; }
 .pill-epic { background: #f57c00; }
 .pill-feature { background: #7b1fa2; }
 .pill-user-story { background: #1976d2; }
@@ -302,3 +302,12 @@ a.pr-chip:hover { background: #cfdef8; }
 .feature-progress { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
 .feature-progress .fold-btn { flex: none; }
 .feature-done { font-weight: 600; flex: none; }
+
+/* ---- Home design prototypes: picker + host ---- */
+.design-picker { position: fixed; right: 16px; bottom: 16px; z-index: 900; display: flex; align-items: center; gap: 2px; padding: 4px; background: rgba(28, 32, 40, .92); border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.25); font-size: 12px; }
+.design-picker-label { color: #9aa3b2; padding: 0 8px 0 10px; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+.design-picker button { border: 0; background: transparent; color: #e6e9ef; padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 12px; }
+.design-picker button:hover { background: rgba(255,255,255,.12); }
+.design-picker button.on { background: #fff; color: #1f2430; font-weight: 600; }
+.page.home-design { overflow: auto; display: block; padding: 0; }
+.page.home-design.hidden { display: none; }

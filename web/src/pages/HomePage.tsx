@@ -14,6 +14,8 @@ import type {
 } from '../../../server/src/types';
 import { api } from '../api';
 import ItemDetailsModal from '../components/ItemDetailsModal';
+import { useHomeData } from './home/kit';
+import { DESIGNS } from './home/designs';
 
 // ---- helpers ---------------------------------------------------------------------------------------------------
 
@@ -419,9 +421,49 @@ interface Props {
   backlogs: BacklogDef[];
   /** called after Mark handled / Undo in the details (tab badges) */
   onAttentionChanged?: () => void;
+  me?: string;
 }
 
-export default function HomePage({ active, backlogs, onAttentionChanged }: Props) {
+const DESIGN_KEY = 'cmfpm.homeDesign.v1';
+/** `#/?design=<id>` wins, then the stored choice, then classic */
+function initialDesign(): string {
+  const q = /[?&]design=([a-z]+)/.exec(window.location.hash)?.[1];
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(DESIGN_KEY);
+  } catch {
+    /* storage blocked */
+  }
+  const id = q ?? stored ?? 'classic';
+  return DESIGNS.some((d) => d.id === id) ? id : 'classic';
+}
+
+/** Floating picker to switch between the Home design prototypes. */
+function DesignPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="design-picker" role="radiogroup" aria-label="Home design">
+      <span className="design-picker-label">Design</span>
+      {DESIGNS.map((d) => (
+        <button key={d.id} role="radio" aria-checked={value === d.id} className={value === d.id ? 'on' : ''} title={d.hint} onClick={() => onChange(d.id)}>
+          {d.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function HomePage({ active, backlogs, onAttentionChanged, me }: Props) {
+  const [design, setDesignState] = useState(initialDesign);
+  const setDesign = (id: string) => {
+    setDesignState(id);
+    try {
+      localStorage.setItem(DESIGN_KEY, id);
+    } catch {
+      /* storage blocked */
+    }
+  };
+  const Design = DESIGNS.find((d) => d.id === design)?.component ?? null;
+  const home = useHomeData(active && Design !== null);
   const [tick, setTick] = useState({ n: 0, refresh: false });
   const [detail, setDetail] = useState<{ id: number; list: number[] } | null>(null);
   const ctx: HomeCtx = { backlogs, open: (id, list) => setDetail({ id, list }) };
@@ -447,8 +489,42 @@ export default function HomePage({ active, backlogs, onAttentionChanged }: Props
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 19 ? 'Good afternoon' : 'Good evening';
 
+  const modal = detail && (
+    <ItemDetailsModal
+      id={detail.id}
+      bands={[]}
+      onClose={() => setDetail(null)}
+      onOpen={(id) => setDetail((d) => ({ id, list: d?.list ?? [id] }))}
+      onStep={step}
+      onAttentionChanged={() => {
+        onAttentionChanged?.();
+        if (Design) void home.reload('comments');
+        else setTick((k) => ({ n: k.n + 1, refresh: false }));
+      }}
+    />
+  );
+
+  if (Design) {
+    return (
+      <div className={'page home-design design-' + design + (active ? '' : ' hidden')}>
+        <Design
+          data={home.data}
+          backlogs={backlogs}
+          open={(id, list) => setDetail({ id, list })}
+          reload={(k, r) => void home.reload(k, r)}
+          refreshAll={() => home.reloadAll(true)}
+          loading={home.loading}
+          me={me}
+        />
+        <DesignPicker value={design} onChange={setDesign} />
+        {modal}
+      </div>
+    );
+  }
+
   return (
     <div className={'page home' + (active ? '' : ' hidden')}>
+      <DesignPicker value={design} onChange={setDesign} />
       <div className="home-top">
         <h2>{hello}</h2>
         <span className="muted">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
@@ -462,19 +538,7 @@ export default function HomePage({ active, backlogs, onAttentionChanged }: Props
           <Card key={s.id} def={s} ctx={ctx} tick={tick} active={active} />
         ))}
       </div>
-      {detail && (
-        <ItemDetailsModal
-          id={detail.id}
-          bands={[]}
-          onClose={() => setDetail(null)}
-          onOpen={(id) => setDetail((d) => ({ id, list: d?.list ?? [id] }))}
-          onStep={step}
-          onAttentionChanged={() => {
-            onAttentionChanged?.();
-            setTick((k) => ({ n: k.n + 1, refresh: false }));
-          }}
-        />
-      )}
+      {modal}
     </div>
   );
 }
