@@ -1,6 +1,6 @@
-# cmfProductManagement
+# PM Cockpit (cmfProductManagement)
 
-Local web app that replaces the Excel Connect IoT backlog. It reads Connect IoT work items from TFS (`Products/Product`), lets you edit business order, state, tags and titles in a grid, and writes approved changes back to TFS. The browser talks only to the local server; the server talks to TFS with your PAT.
+Local web app for daily Connect IoT Product Management. Its **Home** page gathers what needs attention today (comments to reply, running features, items to validate, triage, next-version progress, recent changes), and each area tab replaces the Excel backlog: it reads Connect IoT work items from TFS (`Products/Product`), lets you edit business order, state, tags and titles in a grid, and writes approved changes back to TFS. The browser talks only to the local server; the server talks to TFS with your PAT.
 
 ## Prerequisites
 
@@ -46,6 +46,21 @@ Server on :5180 (watch mode) and Vite on :5181. Open <http://127.0.0.1:5181> in 
 
 - `config/default.json`: committed defaults (port, TFS server, backlogs, WIQL template, score bands, component rules, version tags, editable fields). **Min ver / Max ver** are not configured: they are the lowest and highest version-like tags of the item (`12.0x`, `12.0.x`, `12.0`, `11x`, `12.1.0` …; a line tag such as `12.1x` is the start of its line for Min and the whole line for Max).
 - `config.local.json`: personal overrides, gitignored. Edit it from the **Settings** page in the app. A legacy `wiql` key is ignored and removed on the next save.
+
+### Home
+
+The app opens on **Home** (`#/`, first tab). Each card loads on its own, has its own ↻ (reload from TFS) and shows when it was loaded; **↻ Refresh all** reloads every card. Cards refresh every 5 minutes while Home is visible, and when you come back to Home after more than a minute. Clicking an item opens its details (↑/↓ steps through that card's list); ↗ opens it in TFS; the dot shows its area.
+
+| Card | Contents |
+|---|---|
+| 💬 Comments to reply | Items with comments waiting for you, in every area (backlog and To validate), newest first. Handled ones are left out. |
+| 🚀 Running features | Your **Active** Features with a progress bar of their child items (Closed / Resolved / Active / New; Removed not counted). ▸ lists the items. Your **New** Features are under "Not started". |
+| ✓ To validate | Per area: count, ⚠ No PR, My Feature, oldest waiting, and the 5 oldest items. |
+| 🧭 Triage (BO −1) | Per area: items not reviewed yet (BusinessOrder −1) by type, oldest first. |
+| 🎯 Next version | Per area: items tagged with the Next version tag in any state (except Removed), with a state bar and % done (Resolved + Closed). |
+| 🕑 Recently changed | Items changed by others in the last *N* days (default 3), newest first, up to 30. |
+
+The queries for features, next version and recent changes are in **Settings > Home**. The others reuse the backlog, To validate and comment scans. All Home calls only read from TFS. API: `GET /api/home/{comments,features,validate,triage,next-version,recent}[?refresh=1]`.
 
 ### Backlogs (tabs)
 

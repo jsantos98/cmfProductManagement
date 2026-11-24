@@ -175,6 +175,7 @@ export default function SettingsPage({ onSaved }: Props) {
   };
 
   const setVal = (p: Partial<SettingsDto['validation']>) => set({ validation: { ...s.validation, ...p } });
+  const setHome = (p: Partial<SettingsDto['home']>) => set({ home: { ...s.home, ...p } });
 
   const bands = s.bands;
   const setBands = (b: Band[]) => set({ bands: b });
@@ -258,6 +259,39 @@ export default function SettingsPage({ onSaved }: Props) {
         <h3>WIQL template</h3>
         <p className="muted"><code>{'{{areaPath}}'}</code> is replaced by each backlog's area path.</p>
         <textarea rows={6} value={s.wiqlTemplate} onChange={(e) => set({ wiqlTemplate: e.target.value })} />
+      </section>
+
+      <section>
+        <h3>Home</h3>
+        <p className="muted">Queries behind the Home page cards. All of them only read from TFS.</p>
+        <h4>Running features</h4>
+        <p className="muted">
+          Link query (<code>FROM WorkItemLinks</code>, one hop, <code>MODE (MayContain)</code>) of your open Features and their child
+          items. Active Features get a progress bar; New ones are listed as "Not started".
+        </p>
+        <textarea rows={5} value={s.home.featuresWiql} onChange={(e) => setHome({ featuresWiql: e.target.value })} />
+        <h4>Next version progress</h4>
+        <p className="muted">
+          Items tagged with the next version, per area. <code>{'{{areaPath}}'}</code> and <code>{'{{tag}}'}</code> (= Next version tag)
+          are filled in.
+        </p>
+        <textarea rows={4} value={s.home.nextVersionWiqlTemplate} onChange={(e) => setHome({ nextVersionWiqlTemplate: e.target.value })} />
+        <h4>Recently changed</h4>
+        <p className="muted">
+          Items changed by others, per area. <code>{'{{areaPath}}'}</code> and <code>{'{{days}}'}</code> are filled in.
+        </p>
+        <textarea rows={4} value={s.home.recentWiqlTemplate} onChange={(e) => setHome({ recentWiqlTemplate: e.target.value })} />
+        <label className="field-inline">
+          Days back{' '}
+          <input
+            type="number"
+            min={1}
+            max={30}
+            value={s.home.recentDays}
+            onChange={(e) => setHome({ recentDays: Number(e.target.value) })}
+            style={{ width: 60 }}
+          />
+        </label>
       </section>
 
       <section>

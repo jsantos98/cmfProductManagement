@@ -30,6 +30,7 @@ function load(): AppConfig {
     ...def, ...local,
     tfs: { ...def.tfs, ...(local.tfs ?? {}) },
     validation: { ...def.validation, ...(local.validation ?? {}) },
+    home: { ...def.home, ...(local.home ?? {}) },
   };
   // legacy keys, ignored: single-backlog wiql; Excel-style min/max version rules (versions are parsed from tags now)
   for (const k of ['wiql', 'minVersionRules', 'maxVersionRules']) delete merged[k];
@@ -119,6 +120,15 @@ export function validateSettings(dto: any): asserts dto is SettingsDto {
       if (typeof r !== 'string' || !r.trim()) fail(`validation.${k}["${t}"] must be a non-empty string`);
     }
   }
+  const hm = dto.home;
+  if (!hm || typeof hm !== 'object') fail('home must be an object');
+  const nonEmpty = (k: string): void => { if (typeof hm[k] !== 'string' || !hm[k].trim()) fail(`home.${k} must be a non-empty string`); };
+  nonEmpty('featuresWiql');
+  nonEmpty('nextVersionWiqlTemplate');
+  nonEmpty('recentWiqlTemplate');
+  for (const ph of [AREA_PLACEHOLDER, '{{tag}}']) if (!hm.nextVersionWiqlTemplate.includes(ph)) fail(`home.nextVersionWiqlTemplate must contain ${ph}`);
+  for (const ph of [AREA_PLACEHOLDER, '{{days}}']) if (!hm.recentWiqlTemplate.includes(ph)) fail(`home.recentWiqlTemplate must contain ${ph}`);
+  if (!Number.isInteger(hm.recentDays) || hm.recentDays < 1 || hm.recentDays > 30) fail('home.recentDays must be an integer between 1 and 30');
   for (const k of ['componentRules', 'versionTags', 'hiddenTags', 'editableFields', 'stateOptions']) {
     if (!Array.isArray(dto[k])) fail(`${k} must be an array`);
   }
@@ -133,7 +143,7 @@ export function getSettings(): SettingsDto {
 export function saveSettings(dto: SettingsDto): AppConfig {
   validateSettings(dto);
   const keys: (keyof SettingsDto)[] = ['wiqlTemplate', 'backlogs', 'bands', 'componentRules',
-    'versionTags', 'nextVersionTag', 'hiddenTags', 'editableFields', 'stateOptions', 'validation'];
+    'versionTags', 'nextVersionTag', 'hiddenTags', 'editableFields', 'stateOptions', 'validation', 'home'];
   const local: Record<string, unknown> = fs.existsSync(localPath) ? readJson(localPath) : {};
   for (const k of keys) local[k] = dto[k];
   for (const k of ['wiql', 'minVersionRules', 'maxVersionRules']) delete local[k]; // legacy keys

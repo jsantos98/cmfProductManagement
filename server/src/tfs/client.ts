@@ -16,6 +16,8 @@ export interface PatchOp {
 /** Subset of TfsClient used by the services, so tests can inject a fake. */
 export interface TfsApi {
   wiql(query: string): Promise<number[]>;
+  /** Link query rows (source null = top-level source item). Optional: absent in fakes. */
+  wiqlLinks?(query: string): Promise<{ source: number | null; target: number }[]>;
   getItems(ids: number[], fields: string[]): Promise<RawItem[]>;
   patch(id: number, ops: PatchOp[], opts?: { validateOnly?: boolean }): Promise<RawItem>;
   /** Relations per work item id (optional: absent in fakes, meaning "relations unknown"). */
@@ -36,6 +38,16 @@ export function wiqlIds(r: any): number[] {
     return [...ids];
   }
   return (r?.workItems ?? []).map((w: any) => w.id as number);
+}
+
+/** Rows of a link (one-hop) WIQL response: `source` is null for the query's top-level source items. */
+export function wiqlLinks(r: any): { source: number | null; target: number }[] {
+  const out: { source: number | null; target: number }[] = [];
+  for (const x of Array.isArray(r?.workItemRelations) ? r.workItemRelations : []) {
+    if (x?.target?.id === undefined || x.target.id === null) continue;
+    out.push({ source: x.source?.id ?? null, target: x.target.id as number });
+  }
+  return out;
 }
 
 export class TfsClient implements TfsApi {
@@ -105,6 +117,11 @@ export class TfsClient implements TfsApi {
     const url = `${this.base}/${this.config.tfs.project}/_apis/wit/wiql?${this.api}`;
     const r = await this.request<any>('POST', url, { query });
     return wiqlIds(r);
+  }
+
+  async wiqlLinks(query: string): Promise<{ source: number | null; target: number }[]> {
+    const url = `${this.base}/${this.config.tfs.project}/_apis/wit/wiql?${this.api}`;
+    return wiqlLinks(await this.request<any>('POST', url, { query }));
   }
 
   async getItems(ids: number[], fields: string[]): Promise<RawItem[]> {

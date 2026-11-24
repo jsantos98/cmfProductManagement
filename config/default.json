@@ -48,6 +48,12 @@
   ],
   "versionTags": ["11.3x", "12.0x", "12.1x", "13.0x"],
   "nextVersionTag": "12.1x",
+  "home": {
+    "featuresWiql": "SELECT [System.Id] FROM WorkItemLinks WHERE ([Source].[System.TeamProject] = 'Product' AND [Source].[System.WorkItemType] = 'Feature' AND [Source].[System.AssignedTo] = @Me AND [Source].[System.State] NOT IN ('Closed','Removed')) AND ([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward') AND ([Target].[System.WorkItemType] IN ('Epic','Feature','User Story','Bug')) MODE (MayContain)",
+    "nextVersionWiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.Tags] CONTAINS '{{tag}}' AND [System.State] <> 'Removed'",
+    "recentWiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.ChangedDate] >= @Today - {{days}} AND [System.ChangedBy] <> @Me ORDER BY [System.ChangedDate] DESC",
+    "recentDays": 3
+  },
   "hiddenTags": [],
   "editableFields": ["Custom.BusinessOrder", "System.Tags", "System.State", "System.Title", "System.IterationPath"],
   "stateOptions": ["New", "Active", "Resolved", "Closed", "Removed"]

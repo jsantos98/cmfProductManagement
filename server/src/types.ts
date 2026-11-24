@@ -47,6 +47,8 @@ export interface AppConfig {
     /** work item type -> System.Reason when rejecting (back to Active) */
     reject: Record<string, string>;
   };
+  /** Home (cockpit) landing page queries */
+  home: HomeConfig;
   /** array order = tab order */
   backlogs: BacklogDef[];
   bands: Band[];
@@ -58,6 +60,17 @@ export interface AppConfig {
   /** TFS reference names editable from the grid */
   editableFields: string[];
   stateOptions: string[];
+}
+
+export interface HomeConfig {
+  /** Link query (WorkItemLinks, one hop, MayContain) of my open Features and their children */
+  featuresWiql: string;
+  /** WIQL of the items tagged with the next version in one area; placeholders {{areaPath}} and {{tag}} */
+  nextVersionWiqlTemplate: string;
+  /** WIQL of the items changed by others recently in one area; placeholders {{areaPath}} and {{days}} */
+  recentWiqlTemplate: string;
+  /** days back for "Recently changed" (1..30) */
+  recentDays: number;
 }
 
 /** Settings editable from the UI (everything except port / TFS connection) */
@@ -199,3 +212,58 @@ export interface ItemDetails {
   attention?: AttentionEntry | null;
   ackedAt?: string;
 }
+
+// ---- Home (cockpit) -------------------------------------------------------------------------------------------
+/** Minimal item reference used by the Home cards. `backlogId` = the visible backlog whose area contains the item, if any. */
+export interface HomeItemRef { id: number; type: string; title: string; state: string; url: string; areaPath: string; backlogId: string | null }
+
+export interface HomeComment extends HomeItemRef {
+  /** where the item is listed: the area backlog or its To validate view */
+  view: 'backlog' | 'validate';
+  count: number; lastAuthor: string; lastDate: string; snippet: string;
+}
+export interface HomeCommentsResponse { items: HomeComment[]; errors: number; loadedAt: string }
+
+/** Children counts of a Feature by state; Removed children are excluded. `other` = any other state. */
+export interface StateCounts { new: number; active: number; resolved: number; closed: number; other: number; total: number }
+export interface HomeFeature extends HomeItemRef {
+  counts: StateCounts;
+  children: (HomeItemRef & { assignedTo: string })[];
+}
+export interface HomeFeaturesResponse {
+  /** my Active Features, ordered by id */
+  active: HomeFeature[];
+  /** my New Features (not started) */
+  notStarted: (HomeItemRef & { childCount: number })[];
+  loadedAt: string;
+}
+
+export interface HomeValidateEntry {
+  backlogId: string; name: string; color: string;
+  total: number; noPr: number; viaFeature: number;
+  /** days since the oldest item was resolved, null when unknown */
+  oldestDays: number | null;
+  /** the 5 oldest items */
+  items: (HomeItemRef & { waitDays: number | null; noPr: boolean; viaFeature: boolean })[];
+  error?: string;
+}
+export interface HomeValidateResponse { backlogs: HomeValidateEntry[]; loadedAt: string }
+
+export interface HomeTriageEntry {
+  backlogId: string; name: string; color: string;
+  total: number; byType: CountEntry[];
+  /** up to 8 items, oldest (lowest id) first */
+  items: HomeItemRef[];
+  error?: string;
+}
+export interface HomeTriageResponse { backlogs: HomeTriageEntry[]; loadedAt: string }
+
+export interface HomeNextVersionEntry {
+  backlogId: string; name: string; color: string;
+  counts: StateCounts; byType: CountEntry[];
+  error?: string;
+}
+export interface HomeNextVersionResponse { tag: string; backlogs: HomeNextVersionEntry[]; loadedAt: string }
+
+export interface HomeRecentItem extends HomeItemRef { changedBy: string; changedDate: string }
+export interface HomeRecentResponse { days: number; items: HomeRecentItem[]; errors: number; loadedAt: string }

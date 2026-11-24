@@ -4,14 +4,22 @@ import { api } from './api';
 import BacklogPage from './pages/BacklogPage';
 import ValidationPage from './pages/ValidationPage';
 import SettingsPage from './pages/SettingsPage';
+import HomePage from './pages/HomePage';
 import { ToastHost } from './components/Toasts';
 
-/** `#/settings` -> 'settings'; `#/b/<id>[/validate]` -> that id (maybe unknown); anything else (legacy `#/backlog`, empty) -> null = first visible. */
+/**
+ * `#/settings` -> settings; `#/b/<id>[/validate]` -> that id (maybe unknown); legacy `#/backlog` -> null = first visible;
+ * anything else (`#/`, empty) -> Home.
+ */
 type View = 'backlog' | 'validate';
-type Route = { settings: true } | { settings: false; id: string | null; view: View };
+type Route =
+  | { settings: true; home?: false }
+  | { settings: false; home: true }
+  | { settings: false; home?: false; id: string | null; view: View };
 const parse = (): Route => {
   const h = window.location.hash;
   if (h.startsWith('#/settings')) return { settings: true };
+  if (!h.startsWith('#/b/') && !h.startsWith('#/backlog')) return { settings: false, home: true };
   const m = /^#\/b\/([^/?#]+)(\/validate)?/.exec(h);
   return { settings: false, id: m ? decodeURIComponent(m[1]) : null, view: m && m[2] ? 'validate' : 'backlog' };
 };
@@ -48,6 +56,7 @@ export default function App() {
   const [summary, setSummary] = useState<Record<string, SummaryEntry>>({});
   const [valStats, setValStats] = useState<Record<string, { total: number; waiting: number }>>({});
   const [visitedVal, setVisitedVal] = useState<ReadonlySet<string>>(new Set());
+  const [visitedHome, setVisitedHome] = useState(false);
   const summaryAt = useRef(0);
   const loadSummary = useCallback(async () => {
     summaryAt.current = Date.now();
@@ -119,23 +128,27 @@ export default function App() {
   const tabIds = useMemo(() => new Set(tabs.map((b) => b.id)), [tabs]);
 
   // Active backlog: the routed one if it is a visible tab, else the first visible tab.
-  const activeId: string | null = route.settings
+  const homeRoute = !route.settings && !!route.home;
+  const activeId: string | null = route.settings || route.home
     ? null
     : route.id !== null && tabIds.has(route.id)
       ? route.id
       : (tabs[0]?.id ?? null);
   const settingsRoute = route.settings;
-  const activeView: View = route.settings ? 'backlog' : route.view;
+  const activeView: View = route.settings || route.home ? 'backlog' : route.view;
 
   // Normalise the URL (legacy `#/backlog`, hidden/removed id) to the resolved tab.
   useEffect(() => {
     if (!settings || settingsRoute || activeId === null) return;
     const want = `#/b/${encodeURIComponent(activeId)}${activeView === 'validate' ? '/validate' : ''}`;
     if (window.location.hash !== want) window.history.replaceState(null, '', want);
-    if (route.settings === false && route.id !== activeId) setRoute({ settings: false, id: activeId, view: activeView });
+    if (route.settings === false && !route.home && route.id !== activeId) setRoute({ settings: false, id: activeId, view: activeView });
   }, [settings, settingsRoute, activeId, activeView, route]);
 
   // Lazy mount: a page is created on first visit and then kept mounted.
+  useEffect(() => {
+    if (homeRoute) setVisitedHome(true);
+  }, [homeRoute]);
   useEffect(() => {
     if (activeId === null) return;
     setVisited((v) => (v.has(activeId) ? v : new Set(v).add(activeId)));
@@ -145,9 +158,9 @@ export default function App() {
     setVisitedVal((v) => (v.has(activeId) ? v : new Set(v).add(activeId)));
   }, [activeId, activeView]);
 
-  const activeName = settingsRoute ? 'Settings' : (tabs.find((b) => b.id === activeId)?.name ?? '');
+  const activeName = settingsRoute ? 'Settings' : homeRoute ? 'Home' : (tabs.find((b) => b.id === activeId)?.name ?? '');
   useEffect(() => {
-    document.title = activeName ? `${activeName} · Backlog` : 'Backlog';
+    document.title = activeName ? `${activeName} · PM Cockpit` : 'PM Cockpit';
   }, [activeName]);
 
   const pendingCbs = useRef(new Map<string, (n: number) => void>());
@@ -162,9 +175,11 @@ export default function App() {
   const pendingFor = (id: string) => (tabIds.has(id) ? (pendingById[id] ?? 0) : 0);
   const totalPending = tabs.reduce((s, b) => s + pendingFor(b.id), 0);
 
-  const go = (target: 'settings' | string, view: View = 'backlog') => {
+  const go = (target: 'settings' | 'home' | string, view: View = 'backlog') => {
     const hash =
-      target === 'settings'
+      target === 'home'
+        ? '#/'
+        : target === 'settings'
         ? '#/settings'
         : `#/b/${encodeURIComponent(target)}${view === 'validate' ? '/validate' : ''}`;
     if (window.location.hash === hash) return;
@@ -191,8 +206,11 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <b className="brand">Backlog</b>
+        <b className="brand">PM Cockpit</b>
         <nav>
+          <a className={homeRoute ? 'active' : ''} href="#/" onClick={(e) => { e.preventDefault(); go('home'); }}>
+            Home
+          </a>
           {tabs.map((b) => {
             const n = pendingFor(b.id);
             const on = activeId === b.id;
@@ -275,6 +293,9 @@ export default function App() {
               me={health?.identity}
             />
           ))}
+        {settings && visitedHome && (
+          <HomePage active={homeRoute} backlogs={tabs} onAttentionChanged={() => void loadSummary()} />
+        )}
         {settingsRoute && <SettingsPage onSaved={onSaved} />}
       </main>
       <ToastHost />

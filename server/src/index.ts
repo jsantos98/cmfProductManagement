@@ -8,6 +8,7 @@ import { getItemDetails } from './backlog/service.js';
 import { applyChanges } from './backlog/changes.js';
 import { ackAttention, getAttention, unackAttention } from './backlog/attention.js';
 import { getSummary, loadValidation, pruneValidationCaches, transition } from './backlog/validation.js';
+import { getHomeComments, getHomeFeatures, getHomeNextVersion, getHomeRecent, getHomeTriage, getHomeValidate } from './backlog/home.js';
 import type { ChangesRequest, HealthResponse, SettingsDto, TransitionRequest } from './types.js';
 
 const version = (() => {
@@ -75,6 +76,13 @@ app.get('/api/attention', h(async (req, res) => {
   if (b) res.json(await getAttention(b, req.query.view === 'validate' ? 'validate' : undefined));
 }));
 app.get('/api/validation', h(async (req, res) => { const b = backlogId(req, res); if (b) res.json(await loadValidation(b, req.query.refresh === '1')); }));
+const refreshQ = (req: Request): boolean => req.query.refresh === '1';
+app.get('/api/home/comments', h(async (_req, res) => { res.json(await getHomeComments()); }));
+app.get('/api/home/features', h(async (req, res) => { res.json(await getHomeFeatures(refreshQ(req))); }));
+app.get('/api/home/validate', h(async (req, res) => { res.json(await getHomeValidate(refreshQ(req))); }));
+app.get('/api/home/triage', h(async (req, res) => { res.json(await getHomeTriage(refreshQ(req))); }));
+app.get('/api/home/next-version', h(async (req, res) => { res.json(await getHomeNextVersion(refreshQ(req))); }));
+app.get('/api/home/recent', h(async (req, res) => { res.json(await getHomeRecent(refreshQ(req))); }));
 app.get('/api/summary', h(async (_req, res) => { res.json(await getSummary()); }));
 app.post('/api/validation/transition', h(async (req, res) => {
   const bid = backlogId(req, res);
