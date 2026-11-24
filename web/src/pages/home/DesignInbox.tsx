@@ -393,6 +393,7 @@ export default function DesignInbox(p: DesignProps) {
   );
 
   return (
+    <div className="dA-wrap">
     <div className="dA" ref={rootRef}>
       <nav className="dA-side" aria-label="Sections">
         {nav.map((n) => (
@@ -432,6 +433,7 @@ export default function DesignInbox(p: DesignProps) {
       </main>
 
       {rail}
+    </div>
     </div>
   );
 }

@@ -35,7 +35,7 @@ function Area({ backlogs, id }: { backlogs: BacklogDef[]; id: string | null }) {
   const b = backlogOf(backlogs, id);
   return (
     <span className="dB-area" title={b ? b.name : 'Not in a configured area'}>
-      <span className="dB-dot" style={{ background: b?.color ?? '#c5cad3' }} />
+      <span className="dB-dot" style={{ background: b?.color ?? 'var(--seg-new)' }} />
       {b ? b.name : '—'}
     </span>
   );
@@ -255,45 +255,44 @@ export default function DesignDashboard(p: DesignProps) {
   return (
     <div className="dB">
       <div className="dB-hero">
-        <div className="dB-hero-top">
-          <div>
-            <h2>
-              {hello()}
-              {name ? `, ${name}` : ''}
-            </h2>
-            <div className="dB-date">{date}</div>
-          </div>
-          <span className="dB-grow" />
-          <span className="dB-upd">{at ? `updated ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-          <button className="dB-refresh" onClick={() => p.refreshAll()} disabled={p.loading} aria-busy={p.loading}>
-            <span className={p.loading ? 'dB-spin' : ''} aria-hidden>
-              ↻
-            </span>{' '}
-            Refresh
-          </button>
+        <div className="dB-hero-title">
+          <h2>
+            {hello()}
+            {name ? `, ${name}` : ''}
+          </h2>
+          <div className="dB-date">{date}</div>
         </div>
-        <div className="dB-tiles" role="group" aria-label="Sections">
-          {tiles.map((t) => {
-            if (t.slot.data === null && t.slot.loading) {
-              return (
-                <div key={t.key} className="dB-tile dB-tile-skel" aria-busy="true">
-                  <div className="dB-skel dB-skel-dark" style={{ width: '50%', height: 28 }} />
-                  <div className="dB-skel dB-skel-dark" style={{ width: '70%' }} />
-                  <div className="dB-skel dB-skel-dark" style={{ width: '40%' }} />
-                </div>
-              );
-            }
-            const failed = t.slot.data === null && !!t.slot.err;
+        <span className="dB-grow" />
+        <span className="dB-upd">{at ? `updated ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+        <button className="dB-refresh" onClick={() => p.refreshAll()} disabled={p.loading} aria-busy={p.loading}>
+          <span className={p.loading ? 'dB-spin' : ''} aria-hidden>
+            ↻
+          </span>{' '}
+          Refresh
+        </button>
+      </div>
+
+      <div className="dB-tiles" role="group" aria-label="Sections">
+        {tiles.map((t) => {
+          if (t.slot.data === null && t.slot.loading) {
             return (
-              <button key={t.key} className={'dB-tile' + (sel === t.key ? ' on' : '') + (failed ? ' fail' : '')} aria-pressed={sel === t.key} onClick={() => setPicked(t.key)}>
-                <span className="dB-tile-big">{failed ? '!' : t.big}</span>
-                <span className="dB-tile-label">{t.label}</span>
-                <span className="dB-tile-sub">{failed ? 'failed to load' : t.sub || ' '}</span>
-                {!failed && t.viz}
-              </button>
+              <div key={t.key} className="ui-tile dB-tile dB-tile-skel" aria-busy="true">
+                <div className="dB-skel" style={{ width: '50%', height: 24 }} />
+                <div className="dB-skel" style={{ width: '70%' }} />
+                <div className="dB-skel" style={{ width: '40%' }} />
+              </div>
             );
-          })}
-        </div>
+          }
+          const failed = t.slot.data === null && !!t.slot.err;
+          return (
+            <button key={t.key} className={'ui-tile dB-tile' + (sel === t.key ? ' active' : '') + (failed ? ' tone-bad' : '')} aria-pressed={sel === t.key} onClick={() => setPicked(t.key)}>
+              <span className="ui-tile-value">{failed ? '!' : t.big}</span>
+              <span className="ui-tile-label">{t.label}</span>
+              <span className="ui-tile-sub">{failed ? 'failed to load' : t.sub || ' '}</span>
+              {!failed && t.viz}
+            </button>
+          );
+        })}
       </div>
 
       <div className="dB-body">
@@ -437,7 +436,7 @@ export default function DesignDashboard(p: DesignProps) {
                     </td>
                     <IdTypeCells it={it} />
                     <TitleCell it={it} />
-                    <td>{it.noPr ? <span className="pr-chip nopr" title="No completed pull request: analyse before validating">⚠ No PR</span> : <span className="muted">✓ PR</span>}</td>
+                    <td className="dB-num">{it.noPr ? <span className="pr-chip nopr" title="No completed pull request: analyse before validating">⚠ No PR</span> : <span className="muted">✓ PR</span>}</td>
                     <td>{it.viaFeature ? <span className="listed-feature" title="Listed because the parent Feature is yours">My Feature</span> : <span className="muted">Assigned</span>}</td>
                     <td className={'dB-r dB-num ' + (waitClass(it.waitDays) ?? '')}>{it.waitDays === null ? '—' : `${it.waitDays}d`}</td>
                   </ItemRow>
@@ -765,7 +764,7 @@ export default function DesignDashboard(p: DesignProps) {
             <li key={f.id}>
               <button className="dB-bar-row" onClick={() => p.open(f.id, list)} title={f.title}>
                 <span className="dB-bar-top">
-                  <span className="dB-dot" style={{ background: backlogOf(backlogs, f.backlogId)?.color ?? '#c5cad3' }} />
+                  <span className="dB-dot" style={{ background: backlogOf(backlogs, f.backlogId)?.color ?? 'var(--seg-new)' }} />
                   <span className="dB-bar-name">
                     <span className="muted">#{f.id}</span> {f.title}
                   </span>

@@ -47,11 +47,20 @@ Server on :5180 (watch mode) and Vite on :5181. Open <http://127.0.0.1:5181> in 
 - `config/default.json`: committed defaults (port, TFS server, backlogs, WIQL template, score bands, component rules, version tags, editable fields). **Min ver / Max ver** are not configured: they are the lowest and highest version-like tags of the item (`12.0x`, `12.0.x`, `12.0`, `11x`, `12.1.0` …; a line tag such as `12.1x` is the start of its line for Min and the whole line for Max).
 - `config.local.json`: personal overrides, gitignored. Edit it from the **Settings** page in the app. A legacy `wiql` key is ignored and removed on the next save.
 
+### Layout and themes
+
+- **Sidebar** (left): **Home**, then each area with **Backlog** and **To validate**, and **Settings** at the bottom. Badges show pending edits (orange), comments waiting for you (💬) and items to validate. The footer shows the TFS connection (green dot = connected), the theme switch and **« Collapse** (icons only; remembered in the browser).
+- **Themes**: two directions to choose from, switchable in the sidebar footer or **Settings > Appearance** (stored in this browser only, `cmfpm.theme.v1`):
+  - **Control room**: navy sidebar and header band, teal accent, compact rows (default).
+  - **Inbox**: light sidebar, blue accent, airier rows.
+- **Pages**: a header band (area, title, Backlog | To validate tabs, actions), then KPI tiles (click to filter), a filter bar (search + removable filter chips + page controls) and the grid.
+- **Item details** open in a **side panel on the right** (click a row; on Home click an item). The grid stays usable and the open row is highlighted. ↑/↓ steps through the rows (or the card's list on Home), Esc closes, **TFS ↗** opens it in TFS; drag the panel's left edge to resize it (remembered, `cmfpm.detailsWidth.v1`).
+
 ### Home
 
-The app opens on **Home** (`#/`, first tab). Each card loads on its own, has its own ↻ (reload from TFS) and shows when it was loaded; **↻ Refresh all** reloads every card. Cards refresh every 5 minutes while Home is visible, and when you come back to Home after more than a minute. Clicking an item opens its details (↑/↓ steps through that card's list); ↗ opens it in TFS; the dot shows its area.
+The app opens on **Home** (`#/`). Its look follows the theme: **Control room** shows a dashboard (KPI tiles; click one to see its list as a table, plus a Feature progress panel), **Inbox** shows one action list (sections on the left, j/k to move, Enter to open, In flight and Next version on the right). Both show the same data, reload every 5 minutes while Home is visible and when you come back to it after more than a minute; **↻ Refresh** reloads everything from TFS.
 
-| Card | Contents |
+| Section | Contents |
 |---|---|
 | 💬 Comments to reply | Items with comments waiting for you, in every area (backlog and To validate), newest first. Handled ones are left out. |
 | 🚀 Running features | Your **Active** Features with a progress bar of their child items (Closed / Resolved / Active / New; Removed not counted). ▸ lists the items. Your **New** Features are under "Not started". |
@@ -62,35 +71,35 @@ The app opens on **Home** (`#/`, first tab). Each card loads on its own, has its
 
 The queries for features, next version and recent changes are in **Settings > Home**. The others reuse the backlog, To validate and comment scans. All Home calls only read from TFS. API: `GET /api/home/{comments,features,validate,triage,next-version,recent}[?refresh=1]`.
 
-### Backlogs (tabs)
+### Areas (backlogs)
 
-Each backlog is one area path with its own tab (`#/b/<id>`). In **Settings > Backlogs (tabs)** you can add, order, rename, colour and hide backlogs (hidden = no tab, nothing deleted). Every backlog is loaded with the shared **WIQL template**, where `{{areaPath}}` is replaced by the backlog's area path (single quotes are escaped). Enable **Custom WIQL** on a row to override the template for that backlog only. Bands, version and component rules and editable fields are shared by all backlogs. Each tab keeps its own cache, pending edits and column layout (`cmfpm.columnState.v1.<id>`; the old single layout is used as a fallback).
+Each backlog is one area path with its own entry in the sidebar (`#/b/<id>`). In **Settings > Areas** you can add, order, rename, colour and hide backlogs (hidden = not in the sidebar, nothing deleted). Every backlog is loaded with the shared **WIQL template**, where `{{areaPath}}` is replaced by the backlog's area path (single quotes are escaped). Enable **Custom WIQL** on a row to override the template for that backlog only. Bands, version and component rules and editable fields are shared by all backlogs. Each area keeps its own cache, pending edits and column layout (`cmfpm.columnState.v1.<id>`; the old single layout is used as a fallback).
 
 API: `/api/backlog`, `/api/metrics`, `/api/tags` and `/api/changes` take `?backlog=<id>`. Missing = first configured backlog; unknown id = 404.
 
 ### Tags filter
 
-The Tags column filter lists every distinct tag (ascending, with counts; **(no tags)** last). Unchecking a tag hides every item that has it; tags added later are shown by default. **only** next to a tag shows just the items with that tag (shown as a banner with ✕ to remove it). Pending edits count. **Settings > Tags filter > Hidden by default** lists tags that start unchecked in every backlog; the filter's **defaults** link restores them after you change the filter.
+The Tags column filter lists every distinct tag (ascending, with counts; **(no tags)** last). Unchecking a tag hides every item that has it; tags added later are shown by default. **only** next to a tag shows just the items with that tag (shown as a filter chip with ✕ to remove it). Pending edits count. **Settings > Versions & tags > Hidden by default** lists tags that start unchecked in every backlog; the filter's **defaults** link restores them after you change the filter.
 
 ### Feature items (fold)
 
-In the Backlog view, items whose parent is a Feature are listed right under that Feature (indented with ↳, in their own sort order). The **▾ N** button on a Feature row folds or unfolds its N items. **Feature items ▾ Show all / ▸ Hide all** in the toolbar does it for every Feature; "N folded" counts the folded items. The fold state is kept per backlog in the browser (`cmfpm.featureFold.v1.<id>`). A parent Feature from another area (or already closed) is added as a grey, read-only header row marked **other area**, so its items can be folded too. It can't be edited, selected or moved (right-click offers only details and Open in TFS), and it isn't counted in the metrics. If a filter hides a Feature row, its items show in their normal place.
+In the Backlog view, items whose parent is a Feature are listed right under that Feature (indented with ↳, in their own sort order). The **▾ N** button on a Feature row folds or unfolds its N items. **Feature items ▾ Show all / ▸ Hide all** in the filter bar does it for every Feature; "N folded" counts the folded items. The fold state is kept per backlog in the browser (`cmfpm.featureFold.v1.<id>`). A parent Feature from another area (or already closed) is added as a grey, read-only header row marked **other area**, so its items can be folded too. It can't be edited, selected or moved (right-click offers only details and Open in TFS), and it isn't counted in the metrics. If a filter hides a Feature row, its items show in their normal place.
 
 ### Comments waiting for you
 
-An item is **waiting** when someone else's comment @mentions you and is newer than your own latest comment on it. The 💬 column (next to ID) shows how many such comments it has; hover for the latest one. When a tab opens with waiting items, a notification lists them (click it to filter), and the **Waiting for me** card toggles the same filter. It clears when you reply in TFS, or with **Mark handled** in the item details (local only, stored in `data\attention-acks.json`; **Undo** restores it). The scan runs the backlog's WIQL and reads each item's revision and comment count fresh from TFS (it does not depend on the tab's cached list), then fetches comments only for items with comments whose revision changed. While a tab is visible it re-checks every 5 minutes and when you return to the window (at most once a minute); new waiting comments raise a "New comment waiting for you" notification. API: `GET /api/attention?backlog=<id>`, `POST|DELETE /api/attention/<id>/ack`.
+An item is **waiting** when someone else's comment @mentions you and is newer than your own latest comment on it. The 💬 column (next to ID) shows how many such comments it has; hover for the latest one. When a tab opens with waiting items, a notification lists them (click it to filter), and the **💬 Waiting for me** tile toggles the same filter. It clears when you reply in TFS, or with **Mark handled** in the item details (local only, stored in `data\attention-acks.json`; **Undo** restores it). The scan runs the backlog's WIQL and reads each item's revision and comment count fresh from TFS (it does not depend on the tab's cached list), then fetches comments only for items with comments whose revision changed. While a tab is visible it re-checks every 5 minutes and when you return to the window (at most once a minute); new waiting comments raise a "New comment waiting for you" notification. API: `GET /api/attention?backlog=<id>`, `POST|DELETE /api/attention/<id>/ack`.
 
-### Tab badges
+### Sidebar badges
 
-Each area tab shows **💬N** (items with comments waiting for you, in the backlog and in To validate) and **✓N** (items to validate). They come from `GET /api/summary`, refreshed every 5 minutes, when you return to the window (at most once a minute) and after a Close/Reject. The server warms this at startup (the first scan reads every commented item; about 10 s).
+Under each area, **Backlog** shows 💬N (items with comments waiting for you) and **To validate** shows 💬N and the number of items to validate. They come from `GET /api/summary`, refreshed every 5 minutes, when you return to the window (at most once a minute) and after a Close/Reject. The server warms this at startup (the first scan reads every commented item; about 10 s).
 
 ### To validate
 
-Each area has sub-tabs **Backlog | To validate** (`#/b/<id>/validate`). To validate lists the Resolved items in that area that are assigned to you, plus the Resolved items whose parent Feature is assigned to you (whoever has the item). Oldest resolved first, with Resolved reason / by / on and **Waiting** days (amber from 14, red from 30). **Listed for** says why an item is there: *Assigned to me*, or a purple **My Feature** chip with the item's own assignee. Both queries are in Settings > Validation (`{{areaPath}}` = the area); the second one is a one-hop link query (`FROM WorkItemLinks`) and can be left empty to turn it off. The ✓ tab badge and the 💬 count include both.
+Each area has **Backlog | To validate** (sidebar, or the tabs in the page header; `#/b/<id>/validate`). Tiles on top: To validate, ⚠ No PR and My Feature and 💬 Waiting (click to filter), Oldest waiting, Resolved this week. To validate lists the Resolved items in that area that are assigned to you, plus the Resolved items whose parent Feature is assigned to you (whoever has the item). Oldest resolved first, with Resolved reason / by / on and **Waiting** days (amber from 14, red from 30). **Listed for** says why an item is there: *Assigned to me*, or a purple **My Feature** chip with the item's own assignee. Both queries are in Settings > Validation (`{{areaPath}}` = the area); the second one is a one-hop link query (`FROM WorkItemLinks`) and can be left empty to turn it off. The ✓ tab badge and the 💬 count include both.
 
 - **PR versions**: the versions each item's **completed** pull requests went into, from any repo (`12.1/dev` → 12.1, `11.3/7/beta` → 11.3.7). Other target branches (`development`, `dev`, feature branches) show as grey chips. Each chip opens its PR; the tooltip lists all of them, plus any PR still active. The PR links are read with the list (completed PRs are cached until restart, active ones are re-read).
-- **⚠ No PR — analyse**: the item has no completed pull request (red chip, red stripe on the row). It isn't ready to validate as-is; **⚠ No PR only** in the toolbar shows just these. A grey **?** means the links could not be read from TFS.
-- **✓ Close** (toolbar or right-click, on the selected rows): writes to TFS immediately — State Closed with the close reason of the type (Bug: Verified; Story/Feature/Epic: Acceptance tests pass).
+- **⚠ No PR — analyse**: the item has no completed pull request (red chip, red stripe on the row). It isn't ready to validate as-is; the **⚠ No PR** tile shows just these. A grey **?** means the links could not be read from TFS.
+- **✓ Close** (the bar that appears at the bottom when rows are selected, or right-click): writes to TFS immediately — State Closed with the close reason of the type (Bug: Verified; Story/Feature/Epic: Acceptance tests pass).
 - **✗ Reject…**: asks for an optional comment, then sets State Active with the reject reason (Bug: Test Failed; Story/Feature/Epic: Acceptance tests fail); the comment is added to the item's discussion. The item reappears in the Backlog view.
 - All items are validated first (`validateOnly`); if any fails nothing is written. Otherwise successes are kept and failures listed in a dialog. Each write is logged in `data\changes.jsonl` (`kind: "validation"`). Reasons per type are in Settings > Validation.
 
@@ -110,10 +119,10 @@ Right-click a row (view or edit mode; with several rows selected it acts on all 
 
 ## Editing workflow
 
-1. Switch to **Edit** mode.
-2. Click a cell and type. Enter moves down one row.
-3. Click **Apply**: the changes are written to TFS at once and a notification shows the result. If anything fails, the changes dialog opens with the errors.
-4. Optional: **Review** opens the changes dialog first, with **Dry run** (no TFS writes).
+1. Turn on **Edit mode** (switch in the page header), or just click a BusinessOrder cell.
+2. Click a cell and type. Enter moves down one row. Select rows (checkboxes) to get the bulk bar at the bottom: add/remove a tag, set BusinessOrder, mark/unmark the next version.
+3. While edits are pending, an orange bar above the grid shows how many items changed. **Apply** writes them to TFS at once and a notification shows the result. If anything fails, the changes dialog opens with the errors.
+4. Optional: **Review** opens the changes dialog first, with **Dry run** (no TFS writes). **Discard** drops them.
 
 Failure semantics: a pre-validation failure writes nothing. A runtime failure keeps the rows that succeeded; the failed rows stay pending for a retry.
 

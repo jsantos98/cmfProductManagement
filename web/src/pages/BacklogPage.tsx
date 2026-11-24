@@ -37,6 +37,8 @@ import { compareVersionLabels, versionRange } from '../../../server/src/shared/v
 import PendingChangesDialog from '../components/PendingChangesDialog';
 import CheckboxFilter, { excludeModel, type CheckboxFilterParams } from '../components/CheckboxFilter';
 import ItemDetailsModal from '../components/ItemDetailsModal';
+import { EmptyState, FilterBar, PageHeader, PendingBar, Switch, Tabs, hhmm, type FilterChip } from '../ui/kit';
+import './backlog.css';
 import RowContextMenu, { type MenuEntry } from '../components/RowContextMenu';
 import { toast } from '../components/Toasts';
 import {
@@ -116,6 +118,8 @@ interface Ctx {
   hiddenTags: string[];
   filters: Filters;
   attention: Map<number, AttentionEntry>;
+  /** id of the row open in the details panel (row-open class) */
+  detailId: number | null;
   fold: FoldCtx;
   backlogs: BacklogDef[];
   componentRules: ComponentRule[];
@@ -470,7 +474,7 @@ interface Props {
   onPendingCount: (n: number) => void;
 }
 
-export default function BacklogPage({ backlogId, backlogName, active, reloadToken, staleToken, onMoved, onPendingCount, me }: Props) {
+export default function BacklogPage({ backlogId, backlogName, backlogColor, toValidate, active, reloadToken, staleToken, onMoved, onPendingCount, me }: Props) {
   const gridApi = useRef<GridApi<BacklogItem> | null>(null);
   const [items, setItems] = useState<BacklogItem[]>([]);
   /** parent Features outside this backlog: read-only group headers */
@@ -499,6 +503,7 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   const [attention, setAttention] = useState<Map<number, AttentionEntry>>(new Map());
   const [attentionLoaded, setAttentionLoaded] = useState(false);
   const [fold, setFold] = useState<FoldState>(() => readFold(backlogId));
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const ctx = useRef<Ctx>({
     editMode: false,
@@ -513,6 +518,7 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
     hiddenTags: [],
     filters: {},
     attention: new Map(),
+    detailId: null,
     fold: { featureIds: new Set(), childCount: new Map(), isClosed: () => false, anyClosed: false, toggle: () => undefined },
     backlogs: [],
     setField: () => undefined,
@@ -540,6 +546,7 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   ctx.hiddenTags = settings?.hiddenTags ?? [];
   ctx.filters = filters;
   ctx.attention = attention;
+  ctx.detailId = detailId;
   ctx.backlogs = settings?.backlogs ?? [];
   ctx.componentRules = settings?.componentRules ?? [];
 
@@ -735,6 +742,15 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   useEffect(() => {
     gridApi.current?.refreshHeader();
   }, [viewTag]);
+  const prevDetail = useRef<number | null>(null);
+  useEffect(() => {
+    const a = gridApi.current;
+    const ids = [prevDetail.current, detailId].filter((x): x is number => x !== null);
+    prevDetail.current = detailId;
+    if (!a || !ids.length) return;
+    const rowNodes = ids.map((id) => a.getRowNode(String(id))).filter((n): n is IRowNode<BacklogItem> => !!n);
+    if (rowNodes.length) a.redrawRows({ rowNodes });
+  }, [detailId]);
   useEffect(() => {
     gridApi.current?.onFilterChanged();
   }, [filters, viewTag, attention]);
@@ -835,6 +851,7 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
     const rules: Record<string, (p: RowClassParams<BacklogItem>) => boolean> = {
       'row-moving': (p) => !!p.data && !!ctx.pending[p.data.id]?.fields.areaPath,
       'row-outside': (p) => !!p.data?.outside,
+      'row-open': (p) => !!p.data && p.data.id === ctx.detailId,
     };
     for (let n = 0; n < MAX_MOVE_COLORS; n++) rules['row-moving-' + n] = (p) => !!p.data && moveTarget(ctx, p.data.id) === n;
     return rules;
@@ -919,12 +936,13 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   );
 
   // Type / Band checkbox filters live in the grid filter model; this mirrors them for the metric cards.
-  const [colSel, setColSel] = useState<{ type: string[] | null; band: string[] | null }>({ type: null, band: null });
+  const [colSel, setColSel] = useState<{ type: string[] | null; band: string[] | null; tagsOnly: string | null }>({ type: null, band: null, tagsOnly: null });
   const syncColSel = useCallback(() => {
     const a = gridApi.current;
     if (!a) return;
     const vals = (c: string) => (a.getColumnFilterModel(c) as { values: string[] } | null)?.values ?? null;
-    setColSel({ type: vals('type'), band: vals('band') });
+    const tagsOnly = (a.getColumnFilterModel('tags') as { with?: string } | null)?.with || null;
+    setColSel({ type: vals('type'), band: vals('band'), tagsOnly });
   }, []);
   const toggleCol = async (col: 'type' | 'band', value: string) => {
     const a = gridApi.current;
@@ -935,11 +953,27 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
     await a.setColumnFilterModel(col, only ? null : { values: [value] });
     a.onFilterChanged();
   };
+  const clearCol = async (col: 'type' | 'band') => {
+    const a = gridApi.current;
+    if (!a) return;
+    await a.getColumnFilterInstance(col);
+    await a.setColumnFilterModel(col, null);
+    a.onFilterChanged();
+  };
+  /** Drop the Tags "only <tag>" condition but keep the hidden-by-default exclusions. */
+  const clearTagsOnly = async () => {
+    const a = gridApi.current;
+    if (!a) return;
+    await a.getColumnFilterInstance('tags');
+    await a.setColumnFilterModel('tags', excludeModel(ctx.hiddenTags));
+    a.onFilterChanged();
+  };
   const clearAll = async () => {
     setFilters({});
     const a = gridApi.current;
     if (!a) return;
     await Promise.all([a.setColumnFilterModel('type', null), a.setColumnFilterModel('band', null)]);
+    if (colSel.tagsOnly) await clearTagsOnly();
     a.onFilterChanged();
   };
 
@@ -967,7 +1001,6 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
     nodes.splice(0, nodes.length, ...out);
   }, []);
 
-  const [detailId, setDetailId] = useState<number | null>(null);
   const onCellClicked = (e: CellClickedEvent<BacklogItem>) => {
     if (!e.data || e.colDef.colId === 'sel') return;
     // shortcut: clicking BusinessOrder in view mode switches to edit mode and edits that cell
@@ -1217,109 +1250,162 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
   );
   void visTick;
 
+  const chips: FilterChip[] = [];
+  if (colSel.type) chips.push({ key: 'type', label: `Type: ${colSel.type.join(', ') || 'none'}`, onClear: () => void clearCol('type') });
+  if (colSel.band) chips.push({ key: 'band', label: `Band: ${colSel.band.join(', ') || 'none'}`, onClear: () => void clearCol('band') });
+  const clearFilter = (k: keyof Filters) =>
+    setFilters((f) => {
+      const n = { ...f };
+      delete n[k];
+      return n;
+    });
+  if (filters.notReviewed) chips.push({ key: 'nr', label: 'Not reviewed', onClear: () => clearFilter('notReviewed') });
+  if (filters.waiting) chips.push({ key: 'wait', label: '💬 Waiting for me', onClear: () => clearFilter('waiting') });
+  if (filters.nextVersion) chips.push({ key: 'next', label: `Next version ${viewTag}`, onClear: () => clearFilter('nextVersion') });
+  if (colSel.tagsOnly) chips.push({ key: 'tags', label: `Tags: only ${colSel.tagsOnly}`, onClear: () => void clearTagsOnly() });
+
+  const firstLoading = loading && !loadedAt;
+  const hrefBase = `#/b/${encodeURIComponent(backlogId)}`;
+
   return (
-    <div className={'page backlog' + (active ? '' : ' hidden')} aria-label={backlogName}>
-      <MetricsBar
-        metrics={metrics}
-        bands={bands}
-        filters={filters}
-        colSel={colSel}
-        onToggleCol={(c, v) => void toggleCol(c, v)}
-        onClearAll={() => void clearAll()}
-        nextTag={viewTag}
-        nextCount={nextCount}
-        waitingCount={attention.size}
-        onChange={setFilters}
-      />
-      <div className="toolbar">
-        <input
-          className="search"
-          type="search"
-          placeholder="Quick search…"
-          value={quick}
-          onChange={(e) => setQuick(e.target.value)}
-        />
+    <div className={'page backlog bl-page' + (active ? '' : ' hidden')} aria-label={backlogName}>
+      <PageHeader
+        kicker={backlogName}
+        color={backlogColor}
+        title="Backlog"
+        meta={loadedAt ? `loaded ${hhmm(loadedAt)}` : undefined}
+        tabs={
+          <Tabs
+            items={[
+              { label: 'Backlog', href: hrefBase, on: true },
+              { label: toValidate !== undefined ? `To validate (${toValidate})` : 'To validate', href: `${hrefBase}/validate`, on: false },
+            ]}
+          />
+        }
+      >
+        <Switch checked={editMode} onChange={setEditMode} label="Edit mode" />
         <button onClick={onRefresh} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
-        <span className="muted">loaded {loadedAt ? new Date(loadedAt).toLocaleTimeString() : '—'}</span>
-        <label className="inline">
-          Next version
-          <select
-            value={viewTag}
-            onChange={(e) => {
-              setStoredTag(e.target.value);
-              lsSet(LS_TAG, e.target.value);
-            }}
-          >
-            {versionTags.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="menu-wrap">
-          <button onClick={() => setColMenu((v) => !v)}>Columns ▾</button>
-          {colMenu && (
-            <div className="menu" onMouseLeave={() => setColMenu(false)}>
-              {colList.map((c) => (
-                <label key={c.id}>
-                  <input
-                    type="checkbox"
-                    checked={gridApi.current?.getColumn(c.id)?.isVisible() ?? true}
-                    onChange={(e) => {
-                      gridApi.current?.setColumnsVisible([c.id], e.target.checked);
-                      setVisTick((n) => n + 1);
-                    }}
-                  />
-                  {c.id === 'nextVersion' ? 'Next version' : c.name}
-                </label>
-              ))}
-              <button className="link-btn" onClick={resetLayout}>
-                Reset layout
+      </PageHeader>
+      <div className="page-body">
+        <MetricsBar
+          metrics={metrics}
+          bands={bands}
+          filters={filters}
+          colSel={colSel}
+          onToggleCol={(c, v) => void toggleCol(c, v)}
+          nextTag={viewTag}
+          nextCount={nextCount}
+          waitingCount={attention.size}
+          onChange={setFilters}
+        />
+        <FilterBar search={quick} onSearch={setQuick} placeholder="Quick search…" chips={chips} onClearAll={() => void clearAll()}>
+          {featureChildren.length > 0 && (
+            <span className="bl-fold" title="Items whose parent is a Feature. The ▾/▸ count on a Feature row folds just that Feature.">
+              Feature items
+              <button disabled={!ctx.fold.anyClosed} onClick={() => updateFold({ closed: false, toggled: [] })}>
+                ▾ Show all
               </button>
-            </div>
+              <button disabled={hiddenChildren === featureChildren.length} onClick={() => updateFold({ closed: true, toggled: [] })}>
+                ▸ Hide all
+              </button>
+              {hiddenChildren > 0 && (
+                <span title={outsideChildren ? `${outsideChildren} belong to Features outside this backlog (no row to unfold here)` : undefined}>
+                  {hiddenChildren} folded
+                </span>
+              )}
+            </span>
           )}
-        </div>
-        {featureChildren.length > 0 && (
-          <span className="fold-ctl" title="Items whose parent is a Feature. The ▾/▸ count on a Feature row folds just that Feature.">
-            Feature items
-            <button disabled={!ctx.fold.anyClosed} onClick={() => updateFold({ closed: false, toggled: [] })}>
-              ▾ Show all
-            </button>
-            <button disabled={hiddenChildren === featureChildren.length} onClick={() => updateFold({ closed: true, toggled: [] })}>
-              ▸ Hide all
-            </button>
-            {hiddenChildren > 0 && (
-              <span className="muted" title={outsideChildren ? `${outsideChildren} belong to Features outside this backlog (no row to unfold here)` : undefined}>
-                {hiddenChildren} folded
-              </span>
+          <label className="bl-inline">
+            Next version
+            <select
+              value={viewTag}
+              onChange={(e) => {
+                setStoredTag(e.target.value);
+                lsSet(LS_TAG, e.target.value);
+              }}
+            >
+              {versionTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="menu-wrap">
+            <button onClick={() => setColMenu((v) => !v)}>Columns ▾</button>
+            {colMenu && (
+              <div className="menu bl-cols-menu" onMouseLeave={() => setColMenu(false)}>
+                {colList.map((c) => (
+                  <label key={c.id}>
+                    <input
+                      type="checkbox"
+                      checked={gridApi.current?.getColumn(c.id)?.isVisible() ?? true}
+                      onChange={(e) => {
+                        gridApi.current?.setColumnsVisible([c.id], e.target.checked);
+                        setVisTick((n) => n + 1);
+                      }}
+                    />
+                    {c.id === 'nextVersion' ? 'Next version' : c.name}
+                  </label>
+                ))}
+                <button className="link-btn" onClick={resetLayout}>
+                  Reset layout
+                </button>
+              </div>
             )}
-          </span>
-        )}
-        <span className="grow" />
-        <label className="inline toggle">
-          <input type="checkbox" checked={editMode} onChange={(e) => setEditMode(e.target.checked)} />
-          Edit mode
-        </label>
-        {pendingCount > 0 && <span className="badge warn">{pendingCount} pending</span>}
-        <button
-          className="primary"
-          disabled={pendingCount === 0 || applying}
-          onClick={() => void applyNow()}
-          title="Write all pending changes to TFS now"
+          </div>
+        </FilterBar>
+        {error && <div className="banner error bl-banner-error">{error}</div>}
+        <PendingBar count={pendingCount} busy={applying} onApply={() => void applyNow()} onReview={() => setDialog(true)} onDiscard={onDiscard} />
+        {moveCss && <style>{moveCss}</style>}
+        <div
+          className={'grid-wrap ag-theme-quartz' + (editMode ? '' : ' view-mode')}
+          onContextMenu={(e) => {
+            // suppress the browser menu on rows only; header / empty space keep the default
+            if ((e.target as HTMLElement).closest('.ag-row')) e.preventDefault();
+          }}
         >
-          {applying ? 'Applying…' : `Apply (${pendingCount})`}
-        </button>
-        <button disabled={pendingCount === 0 || applying} onClick={() => setDialog(true)} title="List pending changes; dry run">
-          Review
-        </button>
-        <button disabled={pendingCount === 0 || applying} onClick={onDiscard}>
-          Discard
-        </button>
+          <AgGridReact<BacklogItem>
+            rowData={rowData}
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
+            context={ctx}
+            getRowId={(p) => String(p.data.id)}
+            quickFilterText={quick}
+            rowSelection="multiple"
+            suppressRowClickSelection
+            stopEditingWhenCellsLoseFocus
+            enterNavigatesVertically
+            enterNavigatesVerticallyAfterEdit
+            tooltipShowDelay={300}
+            rowHeight={30}
+            headerHeight={32}
+            loading={firstLoading}
+            noRowsOverlayComponent={NoRows}
+            noRowsOverlayComponentParams={{ error }}
+            isExternalFilterPresent={isExternalFilterPresent}
+            doesExternalFilterPass={doesExternalFilterPass}
+            postSortRows={postSortRows}
+            getRowClass={(p: RowClassParams<BacklogItem>) => (p.data && ROW_TYPE[p.data.type] ? 'row-type-' + ROW_TYPE[p.data.type] : undefined)}
+            rowClassRules={rowClassRules}
+            isRowSelectable={(n) => !n.data?.outside}
+            onCellClicked={onCellClicked}
+            onCellContextMenu={onCellContextMenu}
+            onFilterChanged={syncColSel}
+            onGridReady={onGridReady}
+            onSelectionChanged={(e) => setSelCount(e.api.getSelectedNodes().length)}
+            onColumnMoved={saveState}
+            onColumnResized={(e) => e.finished && saveState()}
+            onColumnVisible={() => {
+              saveState();
+              setVisTick((n) => n + 1);
+            }}
+            onSortChanged={saveState}
+          />
+        </div>
       </div>
-      {error && <div className="banner error">{error}</div>}
       {editMode && (
         <BulkBar
           selCount={selCount}
@@ -1327,6 +1413,7 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
           canOrder={canOrder}
           tagNames={ctx.tagNames}
           nextTag={viewTag}
+          onClear={() => gridApi.current?.deselectAll()}
           onAddTag={(t) => mutate((m) => selectedItems().reduce((acc, i) => addTag(acc, i, t), m))}
           onRemoveTag={(t) => mutate((m) => selectedItems().reduce((acc, i) => removeTag(acc, i, t), m))}
           onSetOrder={(n) => mutate((m) => selectedItems().reduce((acc, i) => pSetField(acc, i, 'businessOrder', n), m))}
@@ -1335,53 +1422,10 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
           }
         />
       )}
-      {moveCss && <style>{moveCss}</style>}
-      <div
-        className={'grid-wrap ag-theme-quartz' + (editMode ? '' : ' view-mode')}
-        onContextMenu={(e) => {
-          // suppress the browser menu on rows only; header / empty space keep the default
-          if ((e.target as HTMLElement).closest('.ag-row')) e.preventDefault();
-        }}
-      >
-        <AgGridReact<BacklogItem>
-          rowData={rowData}
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
-          context={ctx}
-          getRowId={(p) => String(p.data.id)}
-          quickFilterText={quick}
-          rowSelection="multiple"
-          suppressRowClickSelection
-          stopEditingWhenCellsLoseFocus
-          enterNavigatesVertically
-          enterNavigatesVerticallyAfterEdit
-          tooltipShowDelay={300}
-          rowHeight={30}
-          headerHeight={32}
-          isExternalFilterPresent={isExternalFilterPresent}
-          doesExternalFilterPass={doesExternalFilterPass}
-          postSortRows={postSortRows}
-          getRowClass={(p: RowClassParams<BacklogItem>) => (p.data && ROW_TYPE[p.data.type] ? 'row-type-' + ROW_TYPE[p.data.type] : undefined)}
-          rowClassRules={rowClassRules}
-          isRowSelectable={(n) => !n.data?.outside}
-          onCellClicked={onCellClicked}
-          onCellContextMenu={onCellContextMenu}
-          onFilterChanged={syncColSel}
-          onGridReady={onGridReady}
-          onSelectionChanged={(e) => setSelCount(e.api.getSelectedNodes().length)}
-          onColumnMoved={saveState}
-          onColumnResized={(e) => e.finished && saveState()}
-          onColumnVisible={() => {
-            saveState();
-            setVisTick((n) => n + 1);
-          }}
-          onSortChanged={saveState}
-        />
-      </div>
       {menu && (
         <RowContextMenu x={menu.x} y={menu.y} header={menu.header} entries={menu.entries} onClose={closeMenu} />
       )}
-      {detailId !== null && (
+      {detailId !== null && active && (
         <ItemDetailsModal id={detailId} bands={bands} onClose={closeDetail} onOpen={setDetailId} onStep={stepDetail} onAttentionChanged={() => void loadAttention()} />
       )}
       {(dialog || failure) && (
@@ -1399,5 +1443,13 @@ export default function BacklogPage({ backlogId, backlogName, active, reloadToke
         />
       )}
     </div>
+  );
+}
+
+function NoRows(p: { error?: string | null }) {
+  return (
+    <EmptyState title={p.error ? 'Could not load the backlog' : 'No items match'}>
+      {p.error ? 'See the error above.' : 'Try clearing the filters or the search.'}
+    </EmptyState>
   );
 }

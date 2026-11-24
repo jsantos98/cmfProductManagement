@@ -1,4 +1,5 @@
 import type { Band, CountEntry, MetricsResponse } from '../../../server/src/types';
+import { Skeleton, Tile, Tiles, TilesSep } from '../ui/kit';
 
 export interface Filters {
   notReviewed?: boolean;
@@ -13,7 +14,6 @@ interface Props {
   /** current selection of the Type / Band column filters (single source of truth = the grid filter model) */
   colSel: { type: string[] | null; band: string[] | null };
   onToggleCol: (col: 'type' | 'band', value: string) => void;
-  onClearAll: () => void;
   nextTag: string;
   nextCount: number;
   waitingCount?: number;
@@ -32,11 +32,19 @@ export function bandRange(b: Band | undefined): string {
   return `BusinessOrder ${b.min} – ${b.max}`;
 }
 
-export default function MetricsBar({ metrics, bands, filters, colSel, onToggleCol, onClearAll, nextTag, nextCount, waitingCount, onChange }: Props) {
-  if (!metrics) return <div className="metrics muted">Loading metrics…</div>;
+/** KPI tiles of the Backlog page; clicking a tile toggles the matching filter (active filters show as chips in the filter bar). */
+export default function MetricsBar({ metrics, bands, filters, colSel, onToggleCol, nextTag, nextCount, waitingCount, onChange }: Props) {
+  if (!metrics) {
+    return (
+      <Tiles>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} width={120} height={52} />
+        ))}
+      </Tiles>
+    );
+  }
   const colorOf = (label: string) => bands.find((b) => b.label === label)?.color ?? '#9e9e9e';
   const only = (sel: string[] | null, v: string) => !!sel && sel.length === 1 && sel[0] === v;
-  const anyActive = Object.values(filters).some(Boolean) || !!colSel.type || !!colSel.band;
 
   const toggle = <K extends keyof Filters>(k: K, v: Filters[K]) => {
     const next: Filters = { ...filters };
@@ -44,73 +52,61 @@ export default function MetricsBar({ metrics, bands, filters, colSel, onToggleCo
     else next[k] = v;
     onChange(next);
   };
+  const nrSub = metrics.notReviewed.byType.filter((c) => c.count > 0).map((c) => `${c.key}: ${c.count}`).join(' · ');
 
   return (
-    <div className="metrics">
+    <Tiles>
       {TYPES.map((t) => (
-        <button
+        <Tile
           key={t}
-          className={'card' + (only(colSel.type, t) ? ' active' : '')}
+          compact
+          label={<span className={typeClass(t)}>{t}</span>}
+          value={count(metrics.byType, t)}
+          active={only(colSel.type, t)}
           onClick={() => onToggleCol('type', t)}
           title={`Filter by type ${t}`}
-        >
-          <span className={typeClass(t)}>{t}</span>
-          <b>{count(metrics.byType, t)}</b>
-        </button>
+        />
       ))}
-      <span className="sep" />
-      <button
-        className={'card' + (filters.notReviewed ? ' active' : '')}
+      <TilesSep />
+      <Tile
+        label="Not reviewed (-1)"
+        value={metrics.notReviewed.total}
+        sub={nrSub}
+        active={!!filters.notReviewed}
         onClick={() => toggle('notReviewed', true)}
         title={'BusinessOrder = -1\nClick to filter'}
-      >
-        <span>Not reviewed (-1)</span>
-        <b>{metrics.notReviewed.total}</b>
-        <small>
-          {metrics.notReviewed.byType.filter((c) => c.count > 0).map((c) => `${c.key}: ${c.count}`).join(' · ')}
-        </small>
-      </button>
+      />
       {!!waitingCount && waitingCount > 0 && (
-        <button
-          className={'card waiting' + (filters.waiting ? ' active' : '')}
+        <Tile
+          label="💬 Waiting for me"
+          value={waitingCount}
+          tone="warn"
+          active={!!filters.waiting}
           onClick={() => toggle('waiting', true)}
           title={'Comments by others that @mention you, newer than your last comment\nClick to filter'}
-        >
-          <span>💬 Waiting for me</span>
-          <b>{waitingCount}</b>
-        </button>
+        />
       )}
-      <span className="sep" />
-      {metrics.byBand.map((b) => {
-        const color = colorOf(b.key);
-        const active = only(colSel.band, b.key);
-        return (
-          <button
-            key={b.key}
-            className={'card band' + (active ? ' active' : '')}
-            style={{ borderTopColor: color, color: active ? '#fff' : undefined, background: active ? color : undefined }}
-            onClick={() => onToggleCol('band', b.key)}
-            title={`${b.key}: ${bandRange(bands.find((x) => x.label === b.key))}\nClick to filter`}
-          >
-            <span style={{ color: active ? '#fff' : color }}>{b.key}</span>
-            <b>{b.count}</b>
-          </button>
-        );
-      })}
-      <span className="sep" />
-      <button
-        className={'card' + (filters.nextVersion ? ' active' : '')}
+      <TilesSep />
+      {metrics.byBand.map((b) => (
+        <Tile
+          key={b.key}
+          compact
+          label={b.key}
+          value={b.count}
+          color={colorOf(b.key)}
+          active={only(colSel.band, b.key)}
+          onClick={() => onToggleCol('band', b.key)}
+          title={`${b.key}: ${bandRange(bands.find((x) => x.label === b.key))}\nClick to filter`}
+        />
+      ))}
+      <TilesSep />
+      <Tile
+        label={`Next version ${nextTag}`}
+        value={nextCount}
+        active={!!filters.nextVersion}
         onClick={() => toggle('nextVersion', true)}
         title="Items tagged with the selected next version"
-      >
-        <span>Next version {nextTag}</span>
-        <b>{nextCount}</b>
-      </button>
-      {anyActive && (
-        <button className="link-btn" onClick={onClearAll}>
-          clear filters
-        </button>
-      )}
-    </div>
+      />
+    </Tiles>
   );
 }

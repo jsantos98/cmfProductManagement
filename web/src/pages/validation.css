@@ -1,0 +1,6 @@
+/* To validate page. Tokens only. */
+.vl-page .vl-skel { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.vl-page .banner { margin: 0; }
+.vl-page .modal-reject .modal-body { display: flex; flex-direction: column; gap: 6px; }
+.vl-page .modal-reject textarea { width: 100%; resize: vertical; }
+.vl-page .modal-reject .banner.error { margin: 4px 0; }

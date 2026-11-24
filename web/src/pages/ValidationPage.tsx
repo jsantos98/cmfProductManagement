@@ -18,6 +18,8 @@ import CheckboxFilter, { type CheckboxFilterParams } from '../components/Checkbo
 import ItemDetailsModal from '../components/ItemDetailsModal';
 import RowContextMenu, { type MenuEntry } from '../components/RowContextMenu';
 import { toast } from '../components/Toasts';
+import { EmptyState, FilterBar, PageHeader, SelectionBar, Skeleton, Tabs, Tile, Tiles, TilesSep, hhmm, type FilterChip } from '../ui/kit';
+import './validation.css';
 
 const lsCols = (id: string) => `cmfpm.columnState.v1.validate.${id}`;
 const lsGet = (k: string): string | null => {
@@ -321,7 +323,7 @@ interface Failure {
   err?: string;
 }
 
-export default function ValidationPage({ backlogId, backlogName, active, onChanged, onStats }: Props) {
+export default function ValidationPage({ backlogId, backlogName, backlogColor, active, onChanged, onStats }: Props) {
   const gridApi = useRef<GridApi<ValidationItem> | null>(null);
   const [items, setItems] = useState<ValidationItem[]>([]);
   const [loadedAt, setLoadedAt] = useState('');
@@ -338,8 +340,11 @@ export default function ValidationPage({ backlogId, backlogName, active, onChang
   const [comment, setComment] = useState('');
   const [failure, setFailure] = useState<Failure | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [colFilters, setColFilters] = useState<Record<string, unknown>>({});
   const [menu, setMenu] = useState<{ x: number; y: number; header: string; entries: MenuEntry[] } | null>(null);
 
+  const detailRef = useRef<number | null>(null);
+  detailRef.current = detailId;
   const ctx = useRef<Ctx>({ attention: new Map(), onlyWaiting: false, onlyNoPr: false }).current;
   ctx.attention = attention;
   ctx.onlyWaiting = onlyWaiting;
@@ -528,6 +533,9 @@ export default function ValidationPage({ backlogId, backlogName, active, onChang
     },
     [detailId],
   );
+  useEffect(() => {
+    gridApi.current?.redrawRows();
+  }, [detailId]);
   const closeDetail = useCallback(() => setDetailId(null), []);
 
   const waitingTotal = useMemo(() => items.filter((i) => attention.has(i.id)).length, [items, attention]);
@@ -536,80 +544,165 @@ export default function ValidationPage({ backlogId, backlogName, active, onChang
     if (noPrTotal === 0 && onlyNoPr) setOnlyNoPr(false);
   }, [noPrTotal, onlyNoPr]);
 
+  const featureTotal = useMemo(() => items.filter((i) => i.viaFeature).length, [items]);
+  const oldest = useMemo(() => items.reduce((m, i) => Math.max(m, waitDays(i) ?? 0), 0), [items]);
+  const resolvedWeek = useMemo(() => items.filter((i) => (waitDays(i) ?? 99) < 7).length, [items]);
+  const listedVals = (colFilters.listedFor as { values?: string[] } | undefined)?.values;
+  const onlyFeature = !!listedVals && listedVals.length === 1 && listedVals[0] === LISTED_FEATURE;
+  const syncFilters = () => setColFilters({ ...(gridApi.current?.getFilterModel() ?? {}) });
+  const setCol = (colId: string, model: unknown) => {
+    void gridApi.current?.setColumnFilterModel(colId, model).then(() => {
+      gridApi.current?.onFilterChanged();
+      syncFilters();
+    });
+  };
+  const toggleFeature = () => setCol('listedFor', onlyFeature ? null : { values: [LISTED_FEATURE] });
+
+  const colLabel = (colId: string) => gridApi.current?.getColumn(colId)?.getColDef().headerName || colId;
+  const chips: FilterChip[] = [];
+  if (onlyNoPr) chips.push({ key: 'nopr', label: '⚠ No PR only', onClear: () => setOnlyNoPr(false) });
+  if (onlyWaiting) chips.push({ key: 'waiting', label: '💬 Waiting only', onClear: () => setOnlyWaiting(false) });
+  for (const k of Object.keys(colFilters)) {
+    const m = colFilters[k] as { values?: string[]; exclude?: string[]; with?: string } | undefined;
+    let label: string;
+    if (k === 'listedFor' && onlyFeature) label = 'Listed for: ' + LISTED_FEATURE;
+    else if (m?.values) label = `${colLabel(k)}: ${m.values.length ? m.values.join(', ') : 'none'}`;
+    else if (m?.with || m?.exclude?.length) label = `${colLabel(k)}: ` + [m.with && `with ${m.with}`, m.exclude?.length && `without ${m.exclude.join(', ')}`].filter(Boolean).join('; ');
+    else label = `${colLabel(k)} filter`;
+    chips.push({ key: 'col-' + k, label, onClear: () => setCol(k, null) });
+  }
+  const clearAll = () => {
+    setOnlyNoPr(false);
+    setOnlyWaiting(false);
+    gridApi.current?.setFilterModel(null);
+    syncFilters();
+  };
+  const clearSelection = () => gridApi.current?.deselectAll();
+  const firstLoad = loading && !loaded;
+  const hideGrid = loaded && items.length === 0;
+
   return (
-    <div className={'page validation' + (active ? '' : ' hidden')} aria-label={`${backlogName} — to validate`}>
-      <div className="toolbar">
-        <input className="search" type="search" placeholder="Quick search…" value={quick} onChange={(e) => setQuick(e.target.value)} />
+    <div className={'page validation vl-page' + (active ? '' : ' hidden')} aria-label={`${backlogName} — to validate`}>
+      <PageHeader
+        kicker={backlogName}
+        color={backlogColor}
+        title="To validate"
+        meta={`loaded ${hhmm(loadedAt) || '—'}`}
+        tabs={
+          <Tabs
+            items={[
+              { label: 'Backlog', href: `#/b/${encodeURIComponent(backlogId)}`, on: false },
+              { label: `To validate (${items.length})`, href: `#/b/${encodeURIComponent(backlogId)}/validate`, on: true },
+            ]}
+          />
+        }
+      >
         <button onClick={() => void load(true)} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
-        <span className="muted">loaded {loadedAt ? new Date(loadedAt).toLocaleTimeString() : '—'}</span>
-        {waitingTotal > 0 && (
-          <label className="inline toggle" title="Only items with comments waiting for you">
-            <input type="checkbox" checked={onlyWaiting} onChange={(e) => setOnlyWaiting(e.target.checked)} />
-            💬 only ({waitingTotal})
-          </label>
+      </PageHeader>
+      <div className="page-body">
+        <Tiles>
+          <Tile label="To validate" value={items.length} />
+          <TilesSep />
+          <Tile
+            label="⚠ No PR"
+            value={noPrTotal}
+            tone={noPrTotal > 0 ? 'bad' : undefined}
+            active={onlyNoPr}
+            onClick={noPrTotal > 0 ? () => setOnlyNoPr((v) => !v) : undefined}
+            title="Only items with no completed pull request (to analyse)"
+          />
+          <Tile
+            label="My Feature"
+            value={featureTotal}
+            active={onlyFeature}
+            onClick={featureTotal > 0 || onlyFeature ? toggleFeature : undefined}
+            title="Only items listed because their parent Feature is assigned to you"
+          />
+          <Tile
+            label="💬 Waiting"
+            value={waitingTotal}
+            active={onlyWaiting}
+            onClick={waitingTotal > 0 || onlyWaiting ? () => setOnlyWaiting((v) => !v) : undefined}
+            title="Only items with comments waiting for you"
+          />
+          <Tile
+            label="Oldest waiting"
+            value={items.length ? `${oldest}d` : '—'}
+            tone={oldest >= 30 ? 'bad' : oldest >= 14 ? 'warn' : undefined}
+            title="Longest time since an item was resolved (warn from 14 days, bad from 30)"
+          />
+          <Tile label="Resolved this week" value={resolvedWeek} title="Items resolved in the last 7 days" />
+        </Tiles>
+        <FilterBar search={quick} onSearch={setQuick} placeholder="Quick search…" chips={chips} onClearAll={clearAll} />
+        {error && <div className="banner error">{error}</div>}
+        {firstLoad && (
+          <div className="vl-skel" aria-busy="true">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} height={22} />
+            ))}
+          </div>
         )}
-        {noPrTotal > 0 && (
-          <label className="inline toggle nopr-toggle" title="Only items with no completed pull request (to analyse)">
-            <input type="checkbox" checked={onlyNoPr} onChange={(e) => setOnlyNoPr(e.target.checked)} />
-            ⚠ No PR only ({noPrTotal})
-          </label>
+        {loaded && items.length === 0 && !error && (
+          <EmptyState icon="🎉" title="Nothing to validate 🎉">
+            Everything resolved has been validated.
+          </EmptyState>
         )}
-        <span className="grow" />
-        <span className="muted">{selCount} selected</span>
-        <button
-          className="primary"
-          disabled={selCount === 0 || busy}
-          onClick={() => void transition(selected(), 'close')}
-          title="Validated: close the selected items in TFS"
-        >
-          ✓ Close
-        </button>
-        <button disabled={selCount === 0 || busy} onClick={() => startReject(selected())} title="Send the selected items back to Active">
-          ✗ Reject…
-        </button>
-      </div>
-      {error && <div className="banner error">{error}</div>}
-      {loaded && items.length === 0 && !error && <div className="empty-state">Nothing to validate 🎉</div>}
-      <div
-        className="grid-wrap ag-theme-quartz"
-        style={items.length === 0 && loaded ? { display: 'none' } : undefined}
-        onContextMenu={(e) => {
-          if ((e.target as HTMLElement).closest('.ag-row')) e.preventDefault();
-        }}
-      >
-        <AgGridReact<ValidationItem>
-          rowData={items}
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
-          context={ctx}
-          getRowId={(p) => String(p.data.id)}
-          quickFilterText={quick}
-          rowSelection="multiple"
-          suppressRowClickSelection
-          tooltipShowDelay={300}
-          rowHeight={30}
-          headerHeight={32}
-          isExternalFilterPresent={isExternalFilterPresent}
-          doesExternalFilterPass={doesExternalFilterPass}
-          getRowClass={(p: RowClassParams<ValidationItem>) => {
-            if (!p.data) return undefined;
-            const c = [ROW_TYPE[p.data.type] ? 'row-type-' + ROW_TYPE[p.data.type] : '', noPr(p.data) ? 'row-nopr' : ''].filter(Boolean);
-            return c.length ? c : undefined;
+        <div
+          className="grid-wrap ag-theme-quartz"
+          style={hideGrid || firstLoad ? { display: 'none' } : undefined}
+          onContextMenu={(e) => {
+            if ((e.target as HTMLElement).closest('.ag-row')) e.preventDefault();
           }}
-          onCellClicked={onCellClicked}
-          onCellContextMenu={onCellContextMenu}
-          onGridReady={onGridReady}
-          onSelectionChanged={(e) => setSelCount(e.api.getSelectedNodes().length)}
-          onColumnMoved={saveState}
-          onColumnResized={(e) => e.finished && saveState()}
-          onColumnVisible={saveState}
-          onSortChanged={saveState}
-        />
+        >
+          <AgGridReact<ValidationItem>
+            rowData={items}
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
+            context={ctx}
+            getRowId={(p) => String(p.data.id)}
+            quickFilterText={quick}
+            rowSelection="multiple"
+            suppressRowClickSelection
+            tooltipShowDelay={300}
+            rowHeight={30}
+            headerHeight={32}
+            isExternalFilterPresent={isExternalFilterPresent}
+            doesExternalFilterPass={doesExternalFilterPass}
+            getRowClass={(p: RowClassParams<ValidationItem>) => {
+              if (!p.data) return undefined;
+              const c = [
+                ROW_TYPE[p.data.type] ? 'row-type-' + ROW_TYPE[p.data.type] : '',
+                noPr(p.data) ? 'row-nopr' : '',
+                p.data.id === detailRef.current ? 'row-open' : '',
+              ].filter(Boolean);
+              return c.length ? c : undefined;
+            }}
+            onCellClicked={onCellClicked}
+            onCellContextMenu={onCellContextMenu}
+            onGridReady={onGridReady}
+            onFilterChanged={syncFilters}
+            onSelectionChanged={(e) => setSelCount(e.api.getSelectedNodes().length)}
+            onColumnMoved={saveState}
+            onColumnResized={(e) => e.finished && saveState()}
+            onColumnVisible={saveState}
+            onSortChanged={saveState}
+          />
+        </div>
       </div>
+      {active && (
+        <SelectionBar count={selCount} onClear={clearSelection}>
+          <button className="primary" disabled={busy} onClick={() => void transition(selected(), 'close')} title="Validated: close the selected items in TFS">
+            ✓ Close
+          </button>
+          <button disabled={busy} onClick={() => startReject(selected())} title="Send the selected items back to Active">
+            ✗ Reject…
+          </button>
+        </SelectionBar>
+      )}
       {menu && <RowContextMenu x={menu.x} y={menu.y} header={menu.header} entries={menu.entries} onClose={closeMenu} />}
-      {detailId !== null && (
+      {detailId !== null && active && (
         <ItemDetailsModal id={detailId} bands={[]} onClose={closeDetail} onOpen={setDetailId} onStep={stepDetail} onAttentionChanged={() => void loadAttention()} />
       )}
       {rejecting && (

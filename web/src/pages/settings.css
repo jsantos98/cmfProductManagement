@@ -1,0 +1,64 @@
+/* Settings page (prefix st-) */
+.settings-page { overflow: hidden; }
+.st-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 0; display: flex; gap: 20px; align-items: flex-start; background: var(--bg); }
+.st-loading { padding: 24px 18px; display: flex; flex-direction: column; gap: 10px; max-width: 600px; }
+
+.st-nav { flex: none; width: 200px; position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; }
+.st-nav-title { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px; }
+.st-nav a { display: block; padding: 6px 10px; border-radius: var(--radius); border-left: 3px solid transparent; color: var(--text); text-decoration: none; font-size: var(--fs); }
+.st-nav a:hover { background: var(--surface-hover); }
+.st-nav a.on { background: var(--accent-soft); color: var(--accent-strong); border-left-color: var(--accent); font-weight: 600; }
+
+.st-content { flex: 1; min-width: 0; max-width: 980px; display: flex; flex-direction: column; gap: 16px; }
+.st-section { scroll-margin-top: 8px; }
+.st-section .ui-panel-head { flex-wrap: wrap; }
+.st-section .ui-panel-body { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.st-section .ui-panel-body > * { max-width: 100%; }
+.st-section textarea { width: 100%; font-family: var(--font-mono); font-size: var(--fs-sm); }
+.st-section .form-table { width: 100%; }
+.st-section p { margin: 0; }
+.st-section h4 { margin: 8px 0 0; font-size: var(--fs); }
+.st-sub { width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 10px; border-top: 1px dashed var(--border); }
+.st-sub:first-child { border-top: 0; padding-top: 0; }
+.st-sub > h4 { margin: 0; }
+.st-sub textarea, .st-sub .form-table { width: 100%; }
+.st-fields { display: flex; flex-direction: column; gap: 4px; }
+.st-field-wide { width: 100%; }
+.st-field-wide input { width: 100%; }
+.st-num { width: 70px; }
+.st-theme-pick { display: flex; gap: 12px; flex-wrap: wrap; }
+.st-theme { display: flex; flex-direction: column; gap: 8px; width: 240px; padding: 10px; text-align: left; border: 2px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; height: auto; }
+.st-theme:hover { border-color: var(--border-strong); }
+.st-theme.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
+.st-theme-name { font-weight: 600; }
+.st-theme-hint { font-size: var(--fs-sm); color: var(--muted); white-space: normal; }
+/* previews paint the *other* theme, so these colours are intentionally fixed */
+.st-prev { display: flex; height: 54px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.st-prev-shell { width: 30%; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.st-prev-shell i { display: block; height: 5px; border-radius: 2px; opacity: 0.55; }
+.st-prev-shell i.act { opacity: 1; }
+.st-prev-main { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 6px; }
+.st-prev-main i { display: block; height: 7px; border-radius: 2px; }
+.st-prev-b .st-prev-shell { background: #0b2545; }
+.st-prev-b .st-prev-shell i { background: #8ea3bf; }
+.st-prev-b .st-prev-shell i.act { background: #1ec8c8; }
+.st-prev-b .st-prev-main { background: #eef2f6; }
+.st-prev-b .st-prev-main i { background: #d8dee6; }
+.st-prev-b .st-prev-main i.acc { background: #0e8f93; width: 40%; }
+.st-prev-a .st-prev-shell { background: #f7f8fa; }
+.st-prev-a .st-prev-shell i { background: #c3c8d4; }
+.st-prev-a .st-prev-shell i.act { background: #3b5bdb; }
+.st-prev-a .st-prev-main { background: #ffffff; }
+.st-prev-a .st-prev-main i { background: #e6e8ee; }
+.st-prev-a .st-prev-main i.acc { background: #3b5bdb; width: 40%; }
+
+.st-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 0 0 12px; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.st-savebar b { color: var(--text); }
+.st-spacer { flex: 1; }
+.st-end { height: 4px; flex: none; }
+
+@media (max-width: 900px) {
+  .st-body { flex-direction: column; }
+  .st-nav { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .st-nav-title { display: none; }
+}

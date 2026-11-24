@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SelectionBar } from '../ui/kit';
 
 interface Props {
   selCount: number;
@@ -10,18 +11,20 @@ interface Props {
   onRemoveTag: (t: string) => void;
   onSetOrder: (n: number) => void;
   onNext: (on: boolean) => void;
+  /** deselect all rows */
+  onClear: () => void;
 }
 
+/** Floating bar for bulk edits of the selected rows (edit mode; hidden while nothing is selected). */
 export default function BulkBar(p: Props) {
   const [tag, setTag] = useState('');
   const [order, setOrder] = useState('');
   const none = p.selCount === 0;
   const orderNum = order.trim() === '' ? NaN : Number(order);
   return (
-    <div className="bulkbar">
-      <b>{p.selCount} selected</b>
-      <input list="bulk-tags" placeholder="tag" value={tag} onChange={(e) => setTag(e.target.value)} />
-      <datalist id="bulk-tags">
+    <SelectionBar count={p.selCount} onClear={p.onClear}>
+      <input list="bl-bulk-tags" placeholder="tag" value={tag} onChange={(e) => setTag(e.target.value)} />
+      <datalist id="bl-bulk-tags">
         {p.tagNames.map((t) => (
           <option key={t} value={t} />
         ))}
@@ -33,13 +36,7 @@ export default function BulkBar(p: Props) {
         Remove tag
       </button>
       <span className="sep" />
-      <input
-        type="number"
-        className="narrow"
-        placeholder="order"
-        value={order}
-        onChange={(e) => setOrder(e.target.value)}
-      />
+      <input type="number" className="bl-order" placeholder="order" value={order} onChange={(e) => setOrder(e.target.value)} />
       <button disabled={none || Number.isNaN(orderNum) || !p.canOrder} onClick={() => p.onSetOrder(orderNum)}>
         Set BusinessOrder
       </button>
@@ -50,6 +47,6 @@ export default function BulkBar(p: Props) {
       <button disabled={none || !p.canTags} onClick={() => p.onNext(false)}>
         Unmark {p.nextTag}
       </button>
-    </div>
+    </SelectionBar>
   );
 }

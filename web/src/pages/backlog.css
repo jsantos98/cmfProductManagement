@@ -1,0 +1,10 @@
+/* Backlog page (prefix bl-) */
+.bl-order { width: 84px; }
+.bl-fold { display: inline-flex; align-items: center; gap: 4px; padding-left: 8px; border-left: 1px solid var(--border); color: var(--muted); }
+.bl-fold button { padding: 2px 8px; }
+.bl-inline { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.bl-inline select { color: var(--text); }
+.bl-cols-menu { right: 0; left: auto; max-height: 60vh; overflow: auto; }
+.bl-cols-menu .link-btn { align-self: flex-start; margin-top: 4px; }
+.bl-banner-error { flex: none; margin: 0; }
+.bl-page .grid-wrap { min-height: 200px; }
