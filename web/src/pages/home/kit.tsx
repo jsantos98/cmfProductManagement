@@ -8,9 +8,13 @@ import type {
   HomeRecentResponse,
   HomeTriageResponse,
   HomeValidateResponse,
+  PortalRequestsResponse,
   StateCounts,
 } from '../../../../server/src/types';
-import { api } from '../../api';
+import { ApiError, api } from '../../api';
+
+/** `Slot.err` of the portal section when there is no portal session (not an error: the tile shows "Sign in"). */
+export const PORTAL_SIGNIN = 'signin';
 
 // ---- data -------------------------------------------------------------------------------------------------------
 
@@ -24,6 +28,8 @@ export interface HomeData {
   triage: Slot<HomeTriageResponse>;
   nextVersion: Slot<HomeNextVersionResponse>;
   recent: Slot<HomeRecentResponse>;
+  /** Customer Portal enhancement requests (err = 'signin' when no portal session) */
+  portal: Slot<PortalRequestsResponse>;
 }
 export type SectionKey = keyof HomeData;
 
@@ -34,6 +40,7 @@ const LOADERS: { [K in SectionKey]: (refresh: boolean) => Promise<NonNullable<Ho
   triage: (r) => api.home.triage(r),
   nextVersion: (r) => api.home.nextVersion(r),
   recent: (r) => api.home.recent(r),
+  portal: (r) => api.portal.requests(r),
 };
 const KEYS = Object.keys(LOADERS) as SectionKey[];
 const empty = (): Slot<never> => ({ data: null, err: null, loading: false, at: 0 });
@@ -52,7 +59,7 @@ export function useHomeData(enabled: boolean) {
       const data = await LOADERS[key](refresh);
       if (seq.current[key] === my) setD((p) => ({ ...p, [key]: { data, err: null, loading: false, at: Date.now() } }));
     } catch (e) {
-      const err = e instanceof Error ? e.message : String(e);
+      const err = e instanceof ApiError && e.status === 401 ? PORTAL_SIGNIN : e instanceof Error ? e.message : String(e);
       if (seq.current[key] === my) setD((p) => ({ ...p, [key]: { ...p[key], err, loading: false, at: Date.now() } }));
     }
   }, []);

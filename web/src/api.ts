@@ -12,12 +12,24 @@ import type {
   HomeValidateResponse,
   ItemDetails,
   MetricsResponse,
+  PortalRequestsResponse,
+  PortalTicketDetails,
   SettingsDto,
   SummaryResponse,
   TagsResponse,
   TransitionRequest,
   ValidationResponse,
 } from '../../server/src/types';
+
+/** Mirrors `PortalStatus` in server/src/portal/auth.ts. */
+export interface PortalStatus {
+  signedIn: boolean;
+  user?: string;
+  email?: string;
+  expiresAt?: string;
+  remembered: boolean;
+  error?: string;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -81,6 +93,16 @@ export const api = {
     triage: (refresh = false) => request<HomeTriageResponse>(`/api/home/triage${refresh ? '?refresh=1' : ''}`),
     nextVersion: (refresh = false) => request<HomeNextVersionResponse>(`/api/home/next-version${refresh ? '?refresh=1' : ''}`),
     recent: (refresh = false) => request<HomeRecentResponse>(`/api/home/recent${refresh ? '?refresh=1' : ''}`),
+  },
+  portal: {
+    status: () => request<PortalStatus>('/api/portal/status'),
+    logout: () => request<unknown>('/api/portal/logout', 'POST'),
+    requests: (refresh = false) => request<PortalRequestsResponse>(`/api/portal/requests${refresh ? '?refresh=1' : ''}`),
+    ticket: (id: string) => request<PortalTicketDetails>(`/api/portal/tickets/${encodeURIComponent(id)}`),
+    pin: (id: string) => request<unknown>(`/api/portal/pins/${encodeURIComponent(id)}`, 'POST'),
+    unpin: (id: string) => request<unknown>(`/api/portal/pins/${encodeURIComponent(id)}`, 'DELETE'),
+    dismiss: (id: string) => request<unknown>(`/api/portal/dismissed/${encodeURIComponent(id)}`, 'POST'),
+    undismiss: (id: string) => request<unknown>(`/api/portal/dismissed/${encodeURIComponent(id)}`, 'DELETE'),
   },
   getSettings: () => request<SettingsDto>('/api/settings'),
   putSettings: (s: SettingsDto) => request<unknown>('/api/settings', 'PUT', s),

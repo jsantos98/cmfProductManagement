@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Band, ItemDetails } from '../../../server/src/types';
 import { api } from '../api';
 import { toast } from './Toasts';
+import HtmlFrame from './HtmlFrame';
 
 interface Props {
   id: number;
@@ -27,32 +28,6 @@ function readWidth(): number {
   }
   return clampWidth(560);
 }
-const BASE_CSS =
-  'body{font:13px system-ui,Segoe UI,sans-serif;color:#1f2430;margin:0;padding:8px 12px;overflow:hidden;word-wrap:break-word}' +
-  'img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #d9dce1;padding:2px 5px}pre{white-space:pre-wrap}a{color:#2563eb}';
-
-/** TFS HTML is untrusted: it only renders in a script-free sandboxed iframe (allow-same-origin only lets us measure height). */
-function HtmlFrame({ html }: { html: string }) {
-  const ref = useRef<HTMLIFrameElement>(null);
-  const [h, setH] = useState(40);
-  const measure = () => {
-    const b = ref.current?.contentDocument?.body;
-    if (b) setH(Math.max(24, b.scrollHeight + 4));
-  };
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>${BASE_CSS}</style></head><body>${html}</body></html>`;
-  return (
-    <iframe
-      ref={ref}
-      className="detail-frame"
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      srcDoc={srcDoc}
-      style={{ height: h }}
-      onLoad={measure}
-      title="work item content"
-    />
-  );
-}
-
 export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, onAttentionChanged }: Props) {
   const [d, setD] = useState<ItemDetails | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -249,7 +224,7 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
               {d.sections.map((s) => (
                 <section key={s.label} className="detail-section">
                   <h4>{s.label}</h4>
-                  <HtmlFrame html={s.html} />
+                  <HtmlFrame html={s.html} title="work item content" />
                 </section>
               ))}
               {d.children.length > 0 && (
@@ -295,7 +270,7 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
                       {c.author} · {fmtDate(c.date)}
                       {c.mentionsMe && <span className="mention-tag">@you</span>}
                     </div>
-                    <HtmlFrame html={c.html} />
+                    <HtmlFrame html={c.html} title="work item content" />
                   </div>
                 ))}
               </section>

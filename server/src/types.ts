@@ -49,6 +49,8 @@ export interface AppConfig {
   };
   /** Home (cockpit) landing page queries */
   home: HomeConfig;
+  /** Customer Portal (enhancement-request tickets) */
+  portal: PortalConfig;
   /** array order = tab order */
   backlogs: BacklogDef[];
   bands: Band[];
@@ -71,6 +73,82 @@ export interface HomeConfig {
   recentWiqlTemplate: string;
   /** days back for "Recently changed" (1..30) */
   recentDays: number;
+}
+
+export interface PortalConfig {
+  /** portal web/API root, e.g. https://portal.criticalmanufacturing.com */
+  baseUrl: string;
+  /** OAuth 2 endpoints of the CM security portal tenant */
+  authorizeEndpoint: string;
+  tokenEndpoint: string;
+  clientId: string;
+  scope: string;
+  /** case-insensitive words/phrases matched in a ticket's title and body to suggest it */
+  keywords: string[];
+  /** ticket request type to track (OpenReason) */
+  requestType: string;
+  /** escalation role that owns the tickets to suggest ('' = any) */
+  ownershipRole: string;
+  /** ticket states that count as open (portal State filter) */
+  openStates: string[];
+}
+
+// ---- Customer Portal ----------------------------------------------------------------------------------------------
+
+/** One portal ticket as listed by PM Cockpit. */
+export interface PortalTicketRow {
+  id: string;
+  title: string;
+  priority: string;
+  state: string;
+  status: string;
+  customer: string;
+  site: string;
+  /** product version context, e.g. "MES 11.1.3" */
+  context: string;
+  requester: string;
+  /** escalation role owning it, e.g. PortfolioManagementTeam */
+  ownerRole: string;
+  /** assigned agent ('' = none) */
+  agent: string;
+  replies: number;
+  workItems: number;
+  createdOn: string;
+  modifiedOn: string;
+  slaDueDate: string;
+  lastReplyOn: string;
+  /** only known for pinned tickets (read from the ticket details) */
+  lastReplyBy: string | null;
+  lastReplyRole: string | null;
+  waitingForSupport: boolean | null;
+  /** configured keywords found in title/body */
+  matches: string[];
+  pinned: boolean;
+  /** portal page of the ticket */
+  url: string;
+}
+
+export interface PortalRequestsResponse {
+  /** pinned tickets, whatever their state (failed reads are listed in `errors`) */
+  pinned: PortalTicketRow[];
+  /** open tickets of the request type + ownership role matching a keyword, not pinned and not dismissed */
+  suggestions: PortalTicketRow[];
+  /** open tickets of the request type (all roles) */
+  openTotal: number;
+  dismissed: number;
+  errors: { id: string; error: string }[];
+  loadedAt: string;
+}
+
+export interface PortalArticle { id: string; from: string; to: string; createdOn: string; type: string; html: string }
+
+export interface PortalTicketDetails {
+  ticket: PortalTicketRow;
+  stateModel: string;
+  slaStartDate: string;
+  createdBy: string;
+  /** conversation, oldest first; HTML is untrusted */
+  articles: PortalArticle[];
 }
 
 /** Settings editable from the UI (everything except port / TFS connection) */

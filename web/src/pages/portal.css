@@ -1,0 +1,19 @@
+/* Customer Portal page. Tokens only. */
+.pt-page .pt-skel { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.pt-page .banner { margin: 0; }
+.pt-page .ui-empty .banner { margin: 8px auto; max-width: 560px; }
+.pt-page .ui-empty button { margin-top: 8px; }
+.pt-user { color: var(--header-muted); font-size: var(--fs-sm); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-ext { color: var(--header-text); font-size: var(--fs-sm); text-decoration: none; padding: 0 4px; white-space: nowrap; }
+.pt-ext:hover { text-decoration: underline; }
+.pt-id { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: -0.02em; color: var(--link); }
+.details-head-line .pt-id { font-size: var(--fs-sm); color: var(--text); }
+.pt-state { display: inline-flex; align-items: center; gap: 6px; }
+.pt-waiting-txt { color: var(--warn); font-weight: 600; }
+.pt-actions { display: inline-flex; gap: 4px; align-items: center; }
+.pt-actions button { min-height: 22px; padding: 0 8px; line-height: 20px; font-size: var(--fs-sm); }
+.pt-page .ag-theme-quartz .ag-row.pt-row-waiting { background-color: var(--warn-soft); --ag-odd-row-background-color: var(--warn-soft); --ag-background-color: var(--warn-soft); }
+.pt-article { margin: 10px 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; background: var(--surface); }
+.pt-article.internal { background: var(--warn-soft); border-color: var(--warn-border); border-left: 3px solid var(--warn-strong); }
+.pt-article-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; font-size: var(--fs-sm); }
+.pt-article-head .grow { flex: 1; }

@@ -54,6 +54,17 @@
     "recentWiqlTemplate": "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Product' AND [System.AreaPath] UNDER '{{areaPath}}' AND [System.WorkItemType] IN ('Epic','Feature','User Story','Bug') AND [System.ChangedDate] >= @Today - {{days}} AND [System.ChangedBy] <> @Me ORDER BY [System.ChangedDate] DESC",
     "recentDays": 3
   },
+  "portal": {
+    "baseUrl": "https://portal.criticalmanufacturing.com",
+    "authorizeEndpoint": "https://security.criticalmanufacturing.com/tenant/CustomerPortal/login",
+    "tokenEndpoint": "https://security.criticalmanufacturing.com/api/tenant/CustomerPortal/oauth2/token",
+    "clientId": "Applications",
+    "scope": "Applications",
+    "keywords": ["IoT", "Connect IoT", "ConnectIoT", "OPC", "OPC UA", "OPC-DA", "SECS", "GEM", "MQTT", "driver", "protocol", "Automation Controller", "Automation Manager", "workflow", "equipment integration"],
+    "requestType": "Enhancement Request",
+    "ownershipRole": "PortfolioManagementTeam",
+    "openStates": ["Open", "Assessed", "Contained"]
+  },
   "hiddenTags": [],
   "editableFields": ["Custom.BusinessOrder", "System.Tags", "System.State", "System.Title", "System.IterationPath"],
   "stateOptions": ["New", "Active", "Resolved", "Closed", "Removed"]

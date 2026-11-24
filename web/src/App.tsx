@@ -5,6 +5,8 @@ import BacklogPage from './pages/BacklogPage';
 import ValidationPage from './pages/ValidationPage';
 import SettingsPage from './pages/SettingsPage';
 import HomePage from './pages/HomePage';
+import PortalPage from './pages/PortalPage';
+import { usePortalRequests } from './pages/portal/usePortal';
 import { ToastHost } from './components/Toasts';
 import Sidebar, { type NavTarget } from './ui/Sidebar';
 
@@ -14,12 +16,14 @@ import Sidebar, { type NavTarget } from './ui/Sidebar';
  */
 type View = 'backlog' | 'validate';
 type Route =
-  | { settings: true; home?: false }
-  | { settings: false; home: true }
-  | { settings: false; home?: false; id: string | null; view: View };
+  | { settings: true; home?: false; portal?: false }
+  | { settings: false; home: true; portal?: false }
+  | { settings: false; home?: false; portal: true }
+  | { settings: false; home?: false; portal?: false; id: string | null; view: View };
 const parse = (): Route => {
   const h = window.location.hash;
   if (h.startsWith('#/settings')) return { settings: true };
+  if (h.startsWith('#/portal')) return { settings: false, portal: true };
   if (!h.startsWith('#/b/') && !h.startsWith('#/backlog')) return { settings: false, home: true };
   const m = /^#\/b\/([^/?#]+)(\/validate)?/.exec(h);
   return { settings: false, id: m ? decodeURIComponent(m[1]) : null, view: m && m[2] ? 'validate' : 'backlog' };
@@ -39,6 +43,8 @@ export default function App() {
   const [valStats, setValStats] = useState<Record<string, { total: number; waiting: number }>>({});
   const [visitedVal, setVisitedVal] = useState<ReadonlySet<string>>(new Set());
   const [visitedHome, setVisitedHome] = useState(false);
+  const [visitedPortal, setVisitedPortal] = useState(false);
+  const portal = usePortalRequests();
   const summaryAt = useRef(0);
   const loadSummary = useCallback(async () => {
     summaryAt.current = Date.now();
@@ -111,26 +117,30 @@ export default function App() {
 
   // Active backlog: the routed one if it is a visible tab, else the first visible tab.
   const homeRoute = !route.settings && !!route.home;
-  const activeId: string | null = route.settings || route.home
+  const portalRoute = !route.settings && !!route.portal;
+  const activeId: string | null = route.settings || route.home || route.portal
     ? null
     : route.id !== null && tabIds.has(route.id)
       ? route.id
       : (tabs[0]?.id ?? null);
   const settingsRoute = route.settings;
-  const activeView: View = route.settings || route.home ? 'backlog' : route.view;
+  const activeView: View = route.settings || route.home || route.portal ? 'backlog' : route.view;
 
   // Normalise the URL (legacy `#/backlog`, hidden/removed id) to the resolved tab.
   useEffect(() => {
-    if (!settings || settingsRoute || activeId === null) return;
+    if (!settings || settingsRoute || portalRoute || activeId === null) return;
     const want = `#/b/${encodeURIComponent(activeId)}${activeView === 'validate' ? '/validate' : ''}`;
     if (window.location.hash !== want) window.history.replaceState(null, '', want);
-    if (route.settings === false && !route.home && route.id !== activeId) setRoute({ settings: false, id: activeId, view: activeView });
-  }, [settings, settingsRoute, activeId, activeView, route]);
+    if (route.settings === false && !route.home && !route.portal && route.id !== activeId) setRoute({ settings: false, id: activeId, view: activeView });
+  }, [settings, settingsRoute, portalRoute, activeId, activeView, route]);
 
   // Lazy mount: a page is created on first visit and then kept mounted.
   useEffect(() => {
     if (homeRoute) setVisitedHome(true);
   }, [homeRoute]);
+  useEffect(() => {
+    if (portalRoute) setVisitedPortal(true);
+  }, [portalRoute]);
   useEffect(() => {
     if (activeId === null) return;
     setVisited((v) => (v.has(activeId) ? v : new Set(v).add(activeId)));
@@ -140,7 +150,7 @@ export default function App() {
     setVisitedVal((v) => (v.has(activeId) ? v : new Set(v).add(activeId)));
   }, [activeId, activeView]);
 
-  const activeName = settingsRoute ? 'Settings' : homeRoute ? 'Home' : (tabs.find((b) => b.id === activeId)?.name ?? '');
+  const activeName = settingsRoute ? 'Settings' : homeRoute ? 'Home' : portalRoute ? 'Enhancement requests' : (tabs.find((b) => b.id === activeId)?.name ?? '');
   useEffect(() => {
     document.title = activeName ? `${activeName} · PM Cockpit` : 'PM Cockpit';
   }, [activeName]);
@@ -157,12 +167,14 @@ export default function App() {
   const pendingFor = (id: string) => (tabIds.has(id) ? (pendingById[id] ?? 0) : 0);
   const totalPending = tabs.reduce((s, b) => s + pendingFor(b.id), 0);
 
-  const go = (target: 'settings' | 'home' | string, view: View = 'backlog') => {
+  const go = (target: 'settings' | 'home' | 'portal' | string, view: View = 'backlog') => {
     const hash =
       target === 'home'
         ? '#/'
         : target === 'settings'
         ? '#/settings'
+        : target === 'portal'
+        ? '#/portal'
         : `#/b/${encodeURIComponent(target)}${view === 'validate' ? '/validate' : ''}`;
     if (window.location.hash === hash) return;
     if (
@@ -199,7 +211,9 @@ export default function App() {
     });
   const current: NavTarget = settingsRoute
     ? { kind: 'settings' }
-    : homeRoute || activeId === null
+    : portalRoute
+      ? { kind: 'portal' }
+      : homeRoute || activeId === null
       ? { kind: 'home' }
       : { kind: 'area', id: activeId, view: activeView };
   const goNav = (t: NavTarget) => (t.kind === 'area' ? go(t.id, t.view) : go(t.kind));
@@ -219,6 +233,7 @@ export default function App() {
         waiting={(id) => summary[id]?.waiting ?? 0}
         toValidate={valCount}
         validateWaiting={(id) => valStats[id]?.waiting ?? 0}
+        portalBadge={portal.badge}
         health={health}
         healthErr={healthErr}
         collapsed={collapsed}
@@ -260,6 +275,7 @@ export default function App() {
         {settings && visitedHome && (
           <HomePage active={homeRoute} backlogs={tabs} onAttentionChanged={() => void loadSummary()} me={health?.identity} />
         )}
+        {visitedPortal && <PortalPage active={portalRoute} portal={portal} />}
         {settingsRoute && <SettingsPage onSaved={onSaved} />}
       </main>
       <ToastHost />

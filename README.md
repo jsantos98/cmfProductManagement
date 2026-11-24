@@ -115,6 +115,18 @@ Right-click a row (or several selected rows) and choose **Assign to me**: `Syste
 
 Right-click a row (view or edit mode; with several rows selected it acts on all of them) and choose **Move to <backlog>**. The move is written to TFS immediately (`System.AreaPath` set to that backlog's area path), together with any pending edits of those items. Success shows a notification; the moved items disappear from the source tab and the other backlogs reload from TFS. If it fails, the move stays as a pending change (Area column, italic row with a stripe in the target colour) and the changes dialog opens with the error; **Undo move** in the same menu drops it. The server accepts an area path change only to the area path of a configured backlog.
 
+### Customer Portal: enhancement requests
+
+**Customer Portal → Enhancement requests** in the sidebar (`#/portal`) tracks the Enhancement Request tickets of the CM Customer Portal (`portal.criticalmanufacturing.com`).
+
+- **Sign in** once with **Sign in to Customer Portal**. It uses the normal CM login (OAuth 2 code + PKCE, client `Applications`, scope `Applications`, callback `http://127.0.0.1:5180/api/portal/callback`). The access token stays in memory. The refresh token is kept in Windows Credential Manager (generic credential `cmfpm/customer-portal`, via `scripts\credstore.ps1`), so the sign-in survives restarts. **Sign out** removes it.
+- **My requests**: the tickets you pin. They are listed whatever their state, with the last reply (who, role, when) and *waiting for support*.
+- **Suggestions**: open tickets (`openStates`) of the request type owned by `ownershipRole` whose title or text contains one of the `keywords` (whole words, case-insensitive). **Pin** moves one to My requests; **Dismiss** hides it. Pins and dismissals are local, in `data\portal-pins.json`.
+- Click a row for the details panel: properties and the conversation, including internal notes (the HTML is shown in a sandboxed frame).
+- Settings are the `portal` block of the config (keywords, request type, ownership role, open states, endpoints). Nothing is written to the portal yet. Assign, Assessed, Close, Reply and work item links come later, each behind a confirmation.
+
+API: `GET /api/portal/status`, `GET /api/portal/login`, `POST /api/portal/logout`, `GET /api/portal/requests[?refresh=1]`, `GET /api/portal/tickets/<id>`, `POST|DELETE /api/portal/pins/<id>`, `POST|DELETE /api/portal/dismissed/<id>`.
+
 ## Editing workflow
 
 1. Turn on **Edit mode** (switch in the page header), or just click a BusinessOrder cell.
@@ -129,6 +141,7 @@ Failure semantics: a pre-validation failure writes nothing. A runtime failure ke
 - The server listens on `127.0.0.1` only.
 - API requests must carry the `X-CMF-PM` header.
 - The PAT is read from the `AZURE_DEVOPS_PAT` environment variable. It is never written to disk, config or logs.
+- Customer Portal tokens are never written to files, logs or API responses. Only the refresh token is stored, in Windows Credential Manager, under your Windows account.
 
 ## Files and folders
 
@@ -139,6 +152,7 @@ Failure semantics: a pre-validation failure writes nothing. A runtime failure ke
 | `config\default.json` | Committed defaults. |
 | `scripts\` | `start.cmd`, `stop.ps1`, `launcher.ps1`, `install-autostart.ps1`, `uninstall-autostart.ps1`. |
 | `data\changes.jsonl` | Audit log of changes, one JSON object per line (gitignored). |
+| `data\portal-pins.json` | Pinned and dismissed Customer Portal tickets (gitignored). |
 | `logs\` | Server output: `server.log`, `server.err.log` (gitignored). |
 | `server\dist`, `web\dist` | Build output (gitignored). |
 | `%LOCALAPPDATA%\cmfProductManagement\` | Autostart copy of the launcher, `launcher.log`, `start.log`. |

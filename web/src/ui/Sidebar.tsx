@@ -1,7 +1,7 @@
 // Left sidebar: Home, one group per area (Backlog / To validate with badges), Settings; health in the footer.
 import type { BacklogDef, HealthResponse } from '../../../server/src/types';
 
-export type NavTarget = { kind: 'home' } | { kind: 'settings' } | { kind: 'area'; id: string; view: 'backlog' | 'validate' };
+export type NavTarget = { kind: 'home' } | { kind: 'settings' } | { kind: 'portal' } | { kind: 'area'; id: string; view: 'backlog' | 'validate' };
 
 interface Props {
   backlogs: BacklogDef[];
@@ -15,6 +15,8 @@ interface Props {
   toValidate: (id: string) => number | undefined;
   /** comments waiting on the To validate list */
   validateWaiting: (id: string) => number;
+  /** pinned Customer Portal requests waiting for support (undefined = unknown / signed out) */
+  portalBadge?: number;
   health: HealthResponse | null;
   healthErr: string | null;
   collapsed: boolean;
@@ -22,7 +24,7 @@ interface Props {
 }
 
 const href = (t: NavTarget) =>
-  t.kind === 'home' ? '#/' : t.kind === 'settings' ? '#/settings' : `#/b/${encodeURIComponent(t.id)}${t.view === 'validate' ? '/validate' : ''}`;
+  t.kind === 'home' ? '#/' : t.kind === 'settings' ? '#/settings' : t.kind === 'portal' ? '#/portal' : `#/b/${encodeURIComponent(t.id)}${t.view === 'validate' ? '/validate' : ''}`;
 const same = (a: NavTarget, b: NavTarget) =>
   a.kind === b.kind && (a.kind !== 'area' || (b.kind === 'area' && a.id === b.id && a.view === b.view));
 
@@ -144,6 +146,17 @@ export default function Sidebar(p: Props) {
             </div>
           );
         })}
+        <div className="ui-nav-section">Customer Portal</div>
+        {link(
+          { kind: 'portal' },
+          '✉',
+          'Enhancement requests',
+          p.portalBadge !== undefined && p.portalBadge > 0 ? (
+            <span className="ui-nav-count comments" title={`${p.portalBadge} pinned request(s) waiting for support`}>
+              {p.portalBadge}
+            </span>
+          ) : undefined,
+        )}
         <div className="grow" />
         {link({ kind: 'settings' }, '⚙', 'Settings')}
       </nav>

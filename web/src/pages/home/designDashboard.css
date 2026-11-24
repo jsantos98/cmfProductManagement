@@ -128,3 +128,6 @@ th[aria-sort='ascending'] .dB-arrow, th[aria-sort='descending'] .dB-arrow { opac
 @keyframes dB-sh { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .dB-skel, .dB-spin { animation: none; } }
 .dB-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Customer Portal tile is a link, not a drill-down toggle */
+.dB-tile-link { text-decoration: none; color: inherit; display: flex; }

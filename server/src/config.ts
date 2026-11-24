@@ -31,6 +31,7 @@ function load(): AppConfig {
     tfs: { ...def.tfs, ...(local.tfs ?? {}) },
     validation: { ...def.validation, ...(local.validation ?? {}) },
     home: { ...def.home, ...(local.home ?? {}) },
+    portal: { ...def.portal, ...(local.portal ?? {}) },
   };
   // legacy keys, ignored: single-backlog wiql; Excel-style min/max version rules (versions are parsed from tags now)
   for (const k of ['wiql', 'minVersionRules', 'maxVersionRules']) delete merged[k];
@@ -129,6 +130,21 @@ export function validateSettings(dto: any): asserts dto is SettingsDto {
   for (const ph of [AREA_PLACEHOLDER, '{{tag}}']) if (!hm.nextVersionWiqlTemplate.includes(ph)) fail(`home.nextVersionWiqlTemplate must contain ${ph}`);
   for (const ph of [AREA_PLACEHOLDER, '{{days}}']) if (!hm.recentWiqlTemplate.includes(ph)) fail(`home.recentWiqlTemplate must contain ${ph}`);
   if (!Number.isInteger(hm.recentDays) || hm.recentDays < 1 || hm.recentDays > 30) fail('home.recentDays must be an integer between 1 and 30');
+  if (dto.portal !== undefined) {
+    const pt = dto.portal;
+    if (!pt || typeof pt !== 'object') fail('portal must be an object');
+    if (!Array.isArray(pt.keywords) || pt.keywords.some((k: unknown) => typeof k !== 'string')) fail('portal.keywords must be an array of strings');
+    for (const k of ['baseUrl', 'authorizeEndpoint', 'tokenEndpoint']) {
+      if (typeof pt[k] !== 'string' || !/^https:\/\//.test(pt[k])) fail(`portal.${k} must be an https URL`);
+    }
+    for (const k of ['clientId', 'scope', 'requestType']) {
+      if (typeof pt[k] !== 'string' || !pt[k].trim()) fail(`portal.${k} must be a non-empty string`);
+    }
+    if (typeof pt.ownershipRole !== 'string') fail('portal.ownershipRole must be a string (empty = any)');
+    if (!Array.isArray(pt.openStates) || !pt.openStates.length || pt.openStates.some((s: unknown) => typeof s !== 'string' || !s.trim())) {
+      fail('portal.openStates must be a non-empty array of states');
+    }
+  }
   for (const k of ['componentRules', 'versionTags', 'hiddenTags', 'editableFields', 'stateOptions']) {
     if (!Array.isArray(dto[k])) fail(`${k} must be an array`);
   }
@@ -143,9 +159,9 @@ export function getSettings(): SettingsDto {
 export function saveSettings(dto: SettingsDto): AppConfig {
   validateSettings(dto);
   const keys: (keyof SettingsDto)[] = ['wiqlTemplate', 'backlogs', 'bands', 'componentRules',
-    'versionTags', 'nextVersionTag', 'hiddenTags', 'editableFields', 'stateOptions', 'validation', 'home'];
+    'versionTags', 'nextVersionTag', 'hiddenTags', 'editableFields', 'stateOptions', 'validation', 'home', 'portal'];
   const local: Record<string, unknown> = fs.existsSync(localPath) ? readJson(localPath) : {};
-  for (const k of keys) local[k] = dto[k];
+  for (const k of keys) if (dto[k] !== undefined) local[k] = dto[k];
   for (const k of ['wiql', 'minVersionRules', 'maxVersionRules']) delete local[k]; // legacy keys
   fs.writeFileSync(localPath, JSON.stringify(local, null, 2) + '\n', 'utf8');
   cached = load();

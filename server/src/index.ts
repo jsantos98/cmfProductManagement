@@ -9,6 +9,9 @@ import { applyChanges } from './backlog/changes.js';
 import { ackAttention, getAttention, unackAttention } from './backlog/attention.js';
 import { getSummary, loadValidation, pruneValidationCaches, transition } from './backlog/validation.js';
 import { getHomeComments, getHomeFeatures, getHomeNextVersion, getHomeRecent, getHomeTriage, getHomeValidate } from './backlog/home.js';
+import { completeLogin, loginUrl, logout as portalLogout, PortalAuthError, status as portalStatus } from './portal/auth.js';
+import { PortalApiError } from './portal/client.js';
+import { getRequests as getPortalRequests, getTicketDetails, setDismissed, setPin, validTicketId } from './portal/requests.js';
 import type { ChangesRequest, HealthResponse, SettingsDto, TransitionRequest } from './types.js';
 
 const version = (() => {
@@ -118,6 +121,50 @@ app.post('/api/changes', h(async (req, res) => {
   res.json(await applyChanges(body.changes, { dryRun, client: getClient(), cfg: getConfig(), getItem: id => getCachedItem(bid, id), replaceItem, afterMove: ids => afterMove(bid, ids), me: async () => (await getMe()).identity }));
 }));
 
+// ---- Customer Portal sign-in (OAuth 2 + PKCE; tokens never leave the server) ----
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+app.get('/api/portal/login', (_req, res) => { res.redirect(302, loginUrl()); });
+app.get('/api/portal/callback', h(async (req, res) => {
+  const page = (title: string, body: string) =>
+    `<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><body style="font:14px system-ui;padding:32px">` +
+    `<h2>${esc(title)}</h2><p>${body}</p><p><a href="/#/portal">Back to PM Cockpit</a></p></body>`;
+  const { code, state, error, error_description: desc } = req.query as Record<string, string | undefined>;
+  const fail = (why: string) => {
+    console.warn(`Customer Portal sign-in failed: ${why}`);
+    res.status(400).send(page('Customer Portal sign-in failed', esc(why)));
+  };
+  if (error) return fail(desc || error);
+  if (!code) return fail(`The portal did not return a code (params: ${Object.keys(req.query).join(', ') || 'none'}).`);
+  try {
+    await completeLogin(code, state);
+    res.redirect(302, '/#/portal');
+  } catch (e) {
+    fail((e as Error).message);
+  }
+}));
+app.get('/api/portal/status', h(async (_req, res) => { res.json(await portalStatus()); }));
+app.post('/api/portal/logout', h(async (_req, res) => { await portalLogout(); res.json({ ok: true }); }));
+app.get('/api/portal/requests', h(async (req, res) => { res.json(await getPortalRequests(req.query.refresh === '1')); }));
+app.get('/api/portal/tickets/:id', h(async (req, res) => {
+  const id = String(req.params.id);
+  if (!validTicketId(id)) return void res.status(400).json({ error: 'Invalid ticket id' });
+  res.json(await getTicketDetails(id));
+}));
+for (const [route, fn] of [['pins', setPin], ['dismissed', setDismissed]] as const) {
+  app.post(`/api/portal/${route}/:id`, (req, res) => {
+    const id = String(req.params.id);
+    if (!validTicketId(id)) return void res.status(400).json({ error: 'Invalid ticket id' });
+    fn(id, true);
+    res.json({ ok: true });
+  });
+  app.delete(`/api/portal/${route}/:id`, (req, res) => {
+    const id = String(req.params.id);
+    if (!validTicketId(id)) return void res.status(400).json({ error: 'Invalid ticket id' });
+    fn(id, false);
+    res.json({ ok: true });
+  });
+}
+
 app.get('/api/settings', (_req, res) => { res.json(getSettings()); });
 app.put('/api/settings', h((req, res) => {
   saveSettings(req.body as SettingsDto);
@@ -140,6 +187,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const e = err as Error & { status?: number; type?: string };
   const status = err instanceof SettingsError ? 400
     : err instanceof TfsError ? 502
+    : err instanceof PortalAuthError ? 401
+    : err instanceof PortalApiError ? 502
     : e.type === 'entity.parse.failed' ? 400
     : 500;
   if (status >= 500) console.error(e.message);

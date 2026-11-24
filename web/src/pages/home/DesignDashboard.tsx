@@ -7,6 +7,7 @@ import {
   backlogOf,
   doneCount,
   firstName,
+  PORTAL_SIGNIN,
   hello,
   ids,
   pctDone,
@@ -293,6 +294,7 @@ export default function DesignDashboard(p: DesignProps) {
             </button>
           );
         })}
+        {portalTile()}
       </div>
 
       <div className="dB-body">
@@ -301,6 +303,39 @@ export default function DesignDashboard(p: DesignProps) {
       </div>
     </div>
   );
+
+  /** Customer Portal tile: pinned count + "N waiting"; navigates to #/portal. */
+  function portalTile(): ReactNode {
+    const slot = d.portal;
+    if (slot.data === null && slot.loading) {
+      return (
+        <div key="portal" className="ui-tile dB-tile dB-tile-skel" aria-busy="true">
+          <div className="dB-skel" style={{ width: '50%', height: 24 }} />
+          <div className="dB-skel" style={{ width: '70%' }} />
+          <div className="dB-skel" style={{ width: '40%' }} />
+        </div>
+      );
+    }
+    const signIn = slot.data === null && slot.err === PORTAL_SIGNIN;
+    const failed = slot.data === null && !!slot.err && !signIn;
+    const pinned = slot.data?.pinned ?? [];
+    const waiting = pinned.filter((t) => t.waitingForSupport === true).length;
+    return (
+      <a
+        key="portal"
+        href="#/portal"
+        className={'ui-tile dB-tile dB-tile-link' + (failed ? ' tone-bad' : waiting > 0 ? ' tone-warn' : '')}
+        title="Open Customer Portal · Enhancement requests"
+      >
+        <span className="ui-tile-value">{failed ? '!' : signIn ? '—' : slot.data ? String(pinned.length) : '…'}</span>
+        <span className="ui-tile-label">Portal requests</span>
+        <span className="ui-tile-sub">
+          {failed ? 'failed to load' : signIn ? 'Sign in' : slot.data ? (waiting > 0 ? `${waiting} waiting` : pinned.length ? 'none waiting' : 'none pinned') : ' '}
+        </span>
+        {slot.data && waiting > 0 && <div className="dB-dots" aria-hidden>{Array.from({ length: Math.min(waiting, 14) }, (_, i) => <span key={i} />)}</div>}
+      </a>
+    );
+  }
 
   // ---- panels ------------------------------------------------------------------------------------------------------
 
