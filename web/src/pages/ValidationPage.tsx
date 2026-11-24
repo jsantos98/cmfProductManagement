@@ -306,6 +306,8 @@ function buildColumns(ctx: Ctx): ColDef<ValidationItem>[] {
 interface Props {
   backlogId: string;
   backlogName: string;
+  /** area colour (header dot) */
+  backlogColor?: string;
   active: boolean;
   onChanged: (action: 'close' | 'reject') => void;
   /** reports the loaded item count and how many have waiting comments (for the sub-tab) */

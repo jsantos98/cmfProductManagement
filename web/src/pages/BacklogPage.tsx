@@ -456,6 +456,10 @@ function buildColumns(ctx: Ctx): ColDef<BacklogItem>[] {
 interface Props {
   backlogId: string;
   backlogName: string;
+  /** area colour (header dot) */
+  backlogColor?: string;
+  /** items to validate in this area (header tab label) */
+  toValidate?: number;
   active: boolean;
   reloadToken: number;
   /** bumped when another backlog moved items: reload (keeping pending edits) */

@@ -16,6 +16,17 @@ interface Props {
 
 const typeClass = (t: string) => 'pill pill-' + t.toLowerCase().replace(/\s+/g, '-');
 const fmtDate = (s: string) => (s ? new Date(s).toLocaleString() : '');
+const WIDTH_KEY = 'cmfpm.detailsWidth.v1';
+const clampWidth = (w: number) => Math.round(Math.min(Math.max(w, 380), Math.max(420, window.innerWidth - 360)));
+function readWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(WIDTH_KEY));
+    if (Number.isFinite(v) && v > 0) return clampWidth(v);
+  } catch {
+    /* storage blocked */
+  }
+  return clampWidth(560);
+}
 const BASE_CSS =
   'body{font:13px system-ui,Segoe UI,sans-serif;color:#1f2430;margin:0;padding:8px 12px;overflow:hidden;word-wrap:break-word}' +
   'img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #d9dce1;padding:2px 5px}pre{white-space:pre-wrap}a{color:#2563eb}';
@@ -83,10 +94,16 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
     }
   };
 
+  // Keys: Esc closes, ↑/↓ step — unless the user is typing, editing a grid cell, or another dialog/menu is open.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || t.closest('.ag-popup, .ag-cell-inline-editing'))) return;
+      if (document.querySelector('.modal-backdrop, .ctx-menu, .ag-popup-editor, .ag-cell-inline-editing')) return;
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      else {
         e.preventDefault();
         e.stopPropagation();
         onStep(e.key === 'ArrowDown' ? 1 : -1);
@@ -95,6 +112,47 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
     window.addEventListener('keydown', h, true);
     return () => window.removeEventListener('keydown', h, true);
   }, [onClose, onStep]);
+
+  // Panel width: resizable, persisted; the page content makes room for it (body.details-open + --details-w).
+  const [width, setWidth] = useState(readWidth);
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--details-w', `${width}px`);
+  }, [width]);
+  // Reserve room only while the panel is actually shown (pages stay mounted but hidden when you navigate away).
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+    const sync = () => document.body.classList.toggle('details-open', el.getClientRects().length > 0);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.body.classList.remove('details-open');
+    };
+  }, []);
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDragging(true);
+    const move = (ev: MouseEvent) => setWidth(clampWidth(window.innerWidth - ev.clientX));
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      setWidth((w) => {
+        try {
+          localStorage.setItem(WIDTH_KEY, String(w));
+        } catch {
+          /* storage blocked */
+        }
+        return w;
+      });
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
 
   const it = d?.item;
   const band = it ? bands.find((b) => b.label === it.band) : undefined;
@@ -107,19 +165,37 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
     );
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-details" role="dialog" aria-label={`Work item ${id}`}>
+    <aside ref={asideRef} className="ui-details" role="complementary" aria-label={`Work item ${id}`}>
+      <div className={'ui-details-resize' + (dragging ? ' dragging' : '')} onMouseDown={startResize} title="Drag to resize" aria-hidden />
+      <div>
         <div className="details-head">
-          {it && <span className={typeClass(it.type)}>{it.type}</span>}
-          <b>#{id}</b>
-          <span className="details-title">{it?.title ?? (loading ? 'Loading…' : '')}</span>
-          {it && <span className="badge">{it.state}</span>}
-          {it && <button onClick={() => window.open(it.url, '_blank', 'noopener')}>Open in TFS ↗</button>}
-          <button onClick={onClose} aria-label="Close">
-            ✕
-          </button>
+          <div className="details-head-main">
+            <div className="details-head-line">
+              {it && <span className={typeClass(it.type)}>{it.type}</span>}
+              <b>#{id}</b>
+              {it && <span className="badge">{it.state}</span>}
+            </div>
+            <span className="details-title">{it?.title ?? (loading ? 'Loading…' : '')}</span>
+          </div>
+          <div className="details-head-actions">
+            <button className="ghost" onClick={() => onStep(-1)} title="Previous row (↑)" aria-label="Previous row">
+              ↑
+            </button>
+            <button className="ghost" onClick={() => onStep(1)} title="Next row (↓)" aria-label="Next row">
+              ↓
+            </button>
+            {it && (
+              <button onClick={() => window.open(it.url, '_blank', 'noopener')} title="Open in TFS">
+                TFS ↗
+              </button>
+            )}
+            <button className="ghost" onClick={onClose} aria-label="Close" title="Close (Esc)">
+              ✕
+            </button>
+          </div>
         </div>
-        <div className="modal-body" ref={body}>
+      </div>
+      <div className="ui-details-body" ref={body}>
           {loading && !d && <p className="muted">Loading…</p>}
           {err && <div className="banner error">{err}</div>}
           {d && it && (
@@ -225,12 +301,10 @@ export default function ItemDetailsModal({ id, bands, onClose, onOpen, onStep, o
               </section>
             </div>
           )}
-        </div>
-        <div className="modal-foot">
-          <span className="muted grow">Esc closes · ↑/↓ previous / next row</span>
-          <button onClick={onClose}>Close</button>
-        </div>
       </div>
-    </div>
+      <div className="ui-details-foot">
+        <span className="grow">Esc closes · ↑/↓ previous / next row · drag the left edge to resize</span>
+      </div>
+    </aside>
   );
 }

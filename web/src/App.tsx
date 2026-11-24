@@ -6,6 +6,7 @@ import ValidationPage from './pages/ValidationPage';
 import SettingsPage from './pages/SettingsPage';
 import HomePage from './pages/HomePage';
 import { ToastHost } from './components/Toasts';
+import Sidebar, { type NavTarget } from './ui/Sidebar';
 
 /**
  * `#/settings` -> settings; `#/b/<id>[/validate]` -> that id (maybe unknown); legacy `#/backlog` -> null = first visible;
@@ -23,25 +24,6 @@ const parse = (): Route => {
   const m = /^#\/b\/([^/?#]+)(\/validate)?/.exec(h);
   return { settings: false, id: m ? decodeURIComponent(m[1]) : null, view: m && m[2] ? 'validate' : 'backlog' };
 };
-
-function HealthBadges({ h, err }: { h: HealthResponse | null; err: string | null }) {
-  if (err) return <span className="badge bad" title={err}>API unreachable</span>;
-  if (!h) return <span className="badge">checking…</span>;
-  const bad: string[] = [];
-  if (!h.patPresent) bad.push('PAT missing');
-  if (!h.caConfigured) bad.push('CA missing');
-  if (!h.tfsReachable) bad.push('TFS unreachable');
-  if (bad.length) {
-    return (
-      <>
-        {bad.map((b) => (
-          <span key={b} className="badge bad" title={h.error}>{b}</span>
-        ))}
-      </>
-    );
-  }
-  return <span className="badge ok">{h.identity ?? 'connected'}</span>;
-}
 
 export default function App() {
   const [route, setRoute] = useState<Route>(parse);
@@ -198,71 +180,50 @@ export default function App() {
 
   const valCount = (id: string): number | undefined => valStats[id]?.total ?? summary[id]?.toValidate;
 
+  const SIDEBAR_KEY = 'cmfpm.sidebarCollapsed.v1';
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, c ? '0' : '1');
+      } catch {
+        /* storage blocked */
+      }
+      return !c;
+    });
+  const current: NavTarget = settingsRoute
+    ? { kind: 'settings' }
+    : homeRoute || activeId === null
+      ? { kind: 'home' }
+      : { kind: 'area', id: activeId, view: activeView };
+  const goNav = (t: NavTarget) => (t.kind === 'area' ? go(t.id, t.view) : go(t.kind));
+
   const onSaved = useCallback(async () => {
     await loadSettings();
     setReloadToken((n) => n + 1);
   }, [loadSettings]);
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <b className="brand">PM Cockpit</b>
-        <nav>
-          <a className={homeRoute ? 'active' : ''} href="#/" onClick={(e) => { e.preventDefault(); go('home'); }}>
-            Home
-          </a>
-          {tabs.map((b) => {
-            const n = pendingFor(b.id);
-            const on = activeId === b.id;
-            const sm = summary[b.id];
-            const tip = sm
-              ? [
-                  sm.waiting > 0 ? `${sm.waiting} item${sm.waiting === 1 ? '' : 's'} with comments waiting for you` : '',
-                  sm.toValidate > 0 ? `${sm.toValidate} item${sm.toValidate === 1 ? '' : 's'} to validate` : '',
-                ].filter(Boolean).join(' · ')
-              : '';
-            return (
-              <a
-                key={b.id}
-                className={'tab' + (on ? ' active' : '')}
-                style={{ '--tab-color': b.color } as React.CSSProperties}
-                href={`#/b/${encodeURIComponent(b.id)}`}
-                onClick={(e) => { e.preventDefault(); go(b.id); }}
-                title={tip || undefined}
-              >
-                <span className="tab-dot" />
-                {b.name}{n > 0 ? ` (${n})` : ''}
-                {sm && sm.waiting > 0 && <span className="tab-badge comments">💬{sm.waiting}</span>}
-                {sm && sm.toValidate > 0 && <span className="tab-badge validate">✓{sm.toValidate}</span>}
-              </a>
-            );
-          })}
-          <a className={settingsRoute ? 'active' : ''} href="#/settings" onClick={(e) => { e.preventDefault(); go('settings'); }}>
-            Settings
-          </a>
-        </nav>
-        <span className="grow" />
-        <HealthBadges h={health} err={healthErr} />
-      </header>
-      {activeId !== null && !settingsRoute && (
-        <nav className="subtabs" style={{ '--tab-color': tabs.find((b) => b.id === activeId)?.color } as React.CSSProperties}>
-          <a
-            className={activeView === 'backlog' ? 'active' : ''}
-            href={`#/b/${encodeURIComponent(activeId)}`}
-            onClick={(e) => { e.preventDefault(); go(activeId, 'backlog'); }}
-          >
-            Backlog
-          </a>
-          <a
-            className={activeView === 'validate' ? 'active' : ''}
-            href={`#/b/${encodeURIComponent(activeId)}/validate`}
-            onClick={(e) => { e.preventDefault(); go(activeId, 'validate'); }}
-          >
-            To validate{valCount(activeId) !== undefined ? ` (${valCount(activeId)})` : ''}
-            {(valStats[activeId]?.waiting ?? 0) > 0 && <span className="tab-badge comments">💬{valStats[activeId]?.waiting}</span>}
-          </a>
-        </nav>
-      )}
+    <div className={'app' + (collapsed ? ' sidebar-collapsed' : '')}>
+      <Sidebar
+        backlogs={tabs}
+        current={current}
+        go={goNav}
+        pending={pendingFor}
+        waiting={(id) => summary[id]?.waiting ?? 0}
+        toValidate={valCount}
+        validateWaiting={(id) => valStats[id]?.waiting ?? 0}
+        health={health}
+        healthErr={healthErr}
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+      />
       <main>
         {!settings && <div className="page">{settingsErr ? <div className="banner error">{settingsErr}</div> : 'Loading…'}</div>}
         {tabs
@@ -272,6 +233,8 @@ export default function App() {
               key={b.id}
               backlogId={b.id}
               backlogName={b.name}
+              backlogColor={b.color}
+              toValidate={valCount(b.id)}
               active={b.id === activeId && activeView === 'backlog'}
               reloadToken={reloadToken}
               staleToken={staleTokens[b.id] ?? 0}
@@ -287,6 +250,7 @@ export default function App() {
               key={b.id}
               backlogId={b.id}
               backlogName={b.name}
+              backlogColor={b.color}
               active={b.id === activeId && activeView === 'validate'}
               onChanged={(action) => onValidated(b.id, action)}
               onStats={statsCb(b.id)}
